@@ -1,0 +1,513 @@
+# PhishGuard – AI-Powered Phishing Detection & Awareness Platform
+
+## 1. Project Overview
+
+**Project Name:** PhishGuard
+**Project Type:** MCA 6th Trimester Major Project
+**Category:** Cybersecurity + Artificial Intelligence
+
+PhishGuard is a unified phishing detection and user awareness platform designed to identify phishing attempts across **emails, SMS messages, and URLs**. The system combines a **web application** (for manual analysis and education) with a **browser extension** (for real-time URL scanning), both powered by a **shared AI-driven backend**.
+
+The platform focuses on:
+
+* Accurate phishing detection using ML/NLP
+* Explainable risk scoring (not black-box results)
+* User awareness and education
+* Real-world deployability
+
+---
+
+## 2. Problem Statement
+
+Phishing remains one of the most common and successful cyberattacks due to:
+
+* Human error and lack of awareness
+* Increasingly sophisticated social engineering techniques
+* Lack of real-time detection tools for end users
+
+Existing solutions are either:
+
+* Too technical for common users
+* Focused only on URLs or emails, not both
+* Black-box systems with no explanation
+
+**PhishGuard solves this by providing an explainable, multi-input phishing detection system with both manual and real-time analysis capabilities.**
+
+---
+
+## 3. Objectives
+
+* Detect phishing attempts in **email text, SMS text, and URLs**
+* Provide a **risk score (0–100)** with explanation
+* Educate users about why something is phishing
+* Offer **real-time URL protection** via browser extension
+* Maintain a clean, scalable architecture suitable for academic evaluation
+
+---
+
+## 4. System Architecture (High Level)
+
+### Components:
+
+1. **Frontend Web Application (React)**
+2. **Browser Extension (Chrome/Edge – Manifest V3)**
+3. **Backend API (FastAPI)**
+4. **ML/AI Engine (Scikit-learn + NLP)**
+5. **Database (Firebase Firestore)**
+6. **Authentication (Firebase Auth)**
+
+### Architecture Flow:
+
+User → Web App / Extension → FastAPI Backend → ML Engine → Risk Analysis → Response → User
+
+---
+
+## 5. Technology Stack
+
+### Frontend (Web App)
+
+* React.js
+* Tailwind CSS
+* Axios
+
+### Browser Extension
+
+* JavaScript
+* Chrome Extension Manifest V3
+* Content Scripts + Background Service Worker
+
+### Backend
+
+* Python FastAPI
+* RESTful APIs
+* Uvicorn
+
+### AI / ML
+
+* Scikit-learn
+* NLP: NLTK / SpaCy
+* TF-IDF Vectorizer
+* Models: Logistic Regression / Random Forest / Naive Bayes
+
+### Database & Auth
+
+* Firebase Firestore (NoSQL)
+* Firebase Authentication
+
+---
+
+## 6. Functional Requirements
+
+### 6.1 User Authentication
+
+* Email/password signup & login
+* Firebase-based authentication
+
+### 6.2 Manual Phishing Analysis (Web App)
+
+Users can:
+
+* Paste **email content**
+* Paste **SMS content**
+* Paste **URL**
+
+System provides:
+
+* Phishing / Legitimate classification
+* Risk score (Low / Medium / High)
+* Explanation (keywords, domain age, suspicious patterns)
+
+### 6.3 Browser Extension – Real-Time URL Scanning
+
+* Automatically scans active tab URLs
+* Sends URL to backend API
+* Displays risk indicator:
+
+  * Green – Safe
+  * Yellow – Suspicious
+  * Red – Phishing
+
+### 6.4 Explainable AI Output
+
+For each detection:
+
+* Highlight suspicious keywords
+* Show domain-related risks
+* Explain ML decision factors
+
+### 6.5 Awareness & Education Module
+
+* Phishing examples
+* Common attack techniques
+* Safety tips
+* Learning after detection
+
+---
+
+## 7. Non-Functional Requirements
+
+* Response time < 2 seconds
+* Scalable backend architecture
+* Secure API communication
+* Clean UI for non-technical users
+
+---
+
+## 8. AI/ML Design
+
+### Data Sources
+
+* Public phishing datasets (Kaggle, OpenPhish, SpamAssassin)
+* Legitimate email and URL datasets
+
+### Features
+
+* Suspicious keywords
+* URL length
+* Presence of IP address in URL
+* Special characters (@, -, //)
+* Domain age (simulated or rule-based)
+* NLP text patterns
+
+### Model Training Flow
+
+1. Data cleaning
+2. Text preprocessing
+3. Feature extraction (TF-IDF)
+4. Model training
+5. Evaluation (accuracy, precision, recall)
+6. Model serialization (pickle)
+
+---
+
+## 9. Backend API Design
+
+### Endpoints
+
+* `POST /analyze/email`
+* `POST /analyze/sms`
+* `POST /analyze/url`
+* `POST /extension/scan-url`
+
+### Response Format
+
+```json
+{
+  "prediction": "Phishing",
+  "risk_score": 82,
+  "severity": "High",
+  "explanation": ["Suspicious domain", "Urgent language detected"]
+}
+```
+
+---
+
+## 10. Database Design (Firestore)
+
+### Collections
+
+* users
+* scan_logs
+* awareness_content
+
+### Sample scan_logs document
+
+* user_id
+* input_type
+* content
+* result
+* risk_score
+* timestamp
+
+---
+
+## 11. Browser Extension Flow
+
+1. User installs extension
+2. Extension reads current URL
+3. Sends URL to backend
+4. Backend analyzes URL
+5. Result shown via popup UI
+
+---
+
+## 12. Security Considerations
+
+* Input sanitization
+* Rate limiting APIs
+* HTTPS-only communication
+* Secure Firebase rules
+
+---
+
+## 13. Deployment Plan
+
+### Backend
+
+* Localhost during development
+* Deployable to Render / Railway
+
+### Frontend
+
+* Deployable to Vercel / Netlify
+
+### Extension
+
+* Chrome Web Store (future scope)
+
+---
+
+## 14. Testing Strategy
+
+* Unit testing for ML models
+* API testing using Postman
+* Frontend UI testing
+* Manual phishing scenario testing
+
+---
+
+## 15. Future Enhancements
+
+* Gmail API integration
+* SMS API integration
+* User feedback-based learning
+* Advanced deep learning models
+* Admin dashboard
+
+---
+
+## 16. Academic Justification
+
+This project demonstrates:
+
+* Real-world cybersecurity problem solving
+* Practical use of AI/ML
+* Full-stack development skills
+* Explainable AI concepts
+
+---
+
+## 17. Phase-wise Instructions for AI Builder
+
+The project must be developed **phase by phase**. Each phase should be completed, tested, and stabilized before moving to the next.
+
+---
+
+## PHASE 1: Project Initialization & Environment Setup
+
+### Objective
+
+Establish a clean, scalable project structure and development environment.
+
+### Tasks
+
+* Create root project folder `phishguard`
+* Initialize subfolders:
+
+  * `backend/` (FastAPI)
+  * `frontend/` (React)
+  * `extension/` (Browser Extension)
+  * `ml/` (Model training & datasets)
+  * `docs/` (Diagrams, reports)
+
+### Backend Setup
+
+* Create Python virtual environment
+* Install dependencies:
+
+  * fastapi, uvicorn, scikit-learn, pandas, numpy, nltk/spacy
+* Create base FastAPI app with health-check endpoint `/health`
+
+### Frontend Setup
+
+* Initialize React app
+* Install axios and Tailwind CSS
+* Create basic layout and routing
+
+### Deliverables
+
+* Empty but structured project
+* Backend server running
+* Frontend landing page loading
+
+---
+
+## PHASE 2: Data Collection & ML Model Development
+
+### Objective
+
+Build the phishing detection intelligence.
+
+### Tasks
+
+* Collect phishing & legitimate datasets for:
+
+  * Email text
+  * SMS text
+  * URLs
+* Clean and preprocess text data
+* Perform tokenization, stopword removal, stemming/lemmatization
+
+### Feature Engineering
+
+* TF-IDF vectors
+* Suspicious keyword frequency
+* URL length
+* Presence of IP address
+* Special symbols (@, -, //)
+
+### Model Training
+
+* Train baseline models:
+
+  * Logistic Regression
+  * Naive Bayes
+* Evaluate using accuracy, precision, recall
+* Select best-performing model
+* Serialize model using pickle
+
+### Deliverables
+
+* Trained ML model files
+* Model evaluation report
+* Reusable prediction function
+
+---
+
+## PHASE 3: Backend API Development
+
+### Objective
+
+Expose ML functionality through secure APIs.
+
+### Tasks
+
+* Load ML models at app startup
+* Create REST endpoints:
+
+  * `POST /analyze/email`
+  * `POST /analyze/sms`
+  * `POST /analyze/url`
+* Implement risk score calculation logic
+* Generate explanation for each prediction
+
+### API Response Format
+
+* Prediction label
+* Risk score (0–100)
+* Severity level
+* Explanation list
+
+### Deliverables
+
+* Fully working backend APIs
+* Postman-tested endpoints
+
+---
+
+## PHASE 4: Web Application Development
+
+### Objective
+
+Create a user-friendly interface for phishing analysis.
+
+### Tasks
+
+* Implement authentication using Firebase
+* Create analysis pages:
+
+  * Email Analysis
+  * SMS Analysis
+  * URL Analysis
+* Connect frontend to backend APIs
+
+### UI Components
+
+* Input text area
+* Analyze button
+* Result card with:
+
+  * Risk score meter
+  * Prediction label
+  * Explanation bullets
+
+### Deliverables
+
+* Functional web app
+* End-to-end phishing analysis flow
+
+---
+
+## PHASE 5: Browser Extension Development
+
+### Objective
+
+Provide real-time URL phishing protection.
+
+### Tasks
+
+* Create Chrome extension using Manifest V3
+* Implement background service worker
+* Read active tab URL
+* Send URL to backend API
+* Display result in popup UI
+
+### Visual Indicators
+
+* Green: Safe
+* Yellow: Suspicious
+* Red: Phishing
+
+### Deliverables
+
+* Working browser extension
+* Backend-extension integration
+
+---
+
+## PHASE 6: Awareness Module & Logging
+
+### Objective
+
+Improve user education and traceability.
+
+### Tasks
+
+* Create awareness content pages
+* Store scan history in Firestore
+* Display past scans to users
+
+### Deliverables
+
+* Awareness module
+* Scan history feature
+
+---
+
+## PHASE 7: Testing, Deployment & Documentation
+
+### Objective
+
+Finalize project for academic submission.
+
+### Tasks
+
+* Perform functional and UI testing
+* Deploy backend and frontend
+* Prepare screenshots and diagrams
+* Write final project report
+
+### Deliverables
+
+* Deployed application
+* Final report & PPT
+
+---
+
+## Final Instruction to AI Builder
+
+* Follow phases strictly in order
+* Do not skip testing between phases
+* Keep code modular and well-documented
+* Ensure explainable AI outputs
+* Treat this as a production-grade academic project
