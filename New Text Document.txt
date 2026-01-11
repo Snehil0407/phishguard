@@ -342,9 +342,20 @@ Build the phishing detection intelligence.
 
 * Collect phishing & legitimate datasets for:
 
-  * Email text
-  * SMS text
-  * URLs
+  * Email text :-GitHub Phishing Email Dataset (CSV + Repo)
+
+📌 Link: https://github.com/rokibulroni/Phishing-Email-Dataset
+
+
+  * SMS text :- SMS TEXT DATASETS
+  link :- https://www.kaggle.com/datasets/uciml/sms-spam-collection-dataset
+
+
+  * URLs:- PhishTank URLs, Alexa Top Sites
+  link :- https://www.kaggle.com/datasets/taruntiwarihp/phishing-site-urls ,
+  https://www.kaggle.com/datasets/cheedcheed/top1m
+
+
 * Clean and preprocess text data
 * Perform tokenization, stopword removal, stemming/lemmatization
 

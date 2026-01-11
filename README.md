@@ -92,12 +92,27 @@ Frontend will run at: http://localhost:5173
 - [x] Frontend React setup
 - [x] Dependencies installed
 
-⏳ **Phase 2**: Data Collection & ML Model Development (NEXT)
-⏳ **Phase 3**: Backend API Development
+✅ **Phase 2**: Data Collection & ML Model Development (COMPLETED)
+- [x] Datasets loaded (10K emails, 5K SMS, 100K URLs)
+- [x] Text preprocessing pipeline built
+- [x] Feature engineering completed
+- [x] ML models trained (96.61%, 98.30%, 99.80% accuracy)
+- [x] Models evaluated and saved
+- [x] Prediction interface created
+
+⏳ **Phase 3**: Backend API Development (NEXT)
 ⏳ **Phase 4**: Web Application Development
 ⏳ **Phase 5**: Browser Extension Development
 ⏳ **Phase 6**: Awareness Module & Logging
 ⏳ **Phase 7**: Testing, Deployment & Documentation
+
+## ML Model Performance
+
+| Detection Type | Best Model | Accuracy | Dataset Size |
+|---------------|------------|----------|--------------|
+| 📧 Email | Random Forest | 96.61% | 10,188 samples |
+| 📱 SMS | Random Forest | 98.30% | 5,572 samples |
+| 🔗 URL | Random Forest | 99.80% | 100,000 samples |
 
 ## API Endpoints
 

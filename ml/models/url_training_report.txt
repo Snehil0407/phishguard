@@ -1,0 +1,66 @@
+======================================================================
+URL PHISHING DETECTION - TRAINING REPORT
+======================================================================
+
+Training Date: 2026-01-11 13:34:44
+Best Model: Random Forest
+Number of Features: 14
+Features: url_length, has_ip, is_https, subdomain_count, has_port, suspicious_word_count, is_trusted, dot_count, dash_count, at_count, slash_count, question_count, equals_count, underscore_count
+
+
+Logistic Regression
+--------------------------------------------------
+Accuracy:  0.9974
+Precision: 0.9975
+Recall:    0.9974
+F1-Score:  0.9974
+CV Score:  0.9976 (+/- 0.0001)
+
+Classification Report:
+              precision    recall  f1-score   support
+
+           0       1.00      1.00      1.00     10000
+           1       1.00      0.99      1.00     10000
+
+    accuracy                           1.00     20000
+   macro avg       1.00      1.00      1.00     20000
+weighted avg       1.00      1.00      1.00     20000
+
+
+Random Forest
+--------------------------------------------------
+Accuracy:  0.9980
+Precision: 0.9980
+Recall:    0.9980
+F1-Score:  0.9980
+CV Score:  0.9978 (+/- 0.0002)
+
+Classification Report:
+              precision    recall  f1-score   support
+
+           0       1.00      1.00      1.00     10000
+           1       1.00      1.00      1.00     10000
+
+    accuracy                           1.00     20000
+   macro avg       1.00      1.00      1.00     20000
+weighted avg       1.00      1.00      1.00     20000
+
+
+Gradient Boosting
+--------------------------------------------------
+Accuracy:  0.9979
+Precision: 0.9979
+Recall:    0.9979
+F1-Score:  0.9979
+CV Score:  0.9980 (+/- 0.0001)
+
+Classification Report:
+              precision    recall  f1-score   support
+
+           0       1.00      1.00      1.00     10000
+           1       1.00      1.00      1.00     10000
+
+    accuracy                           1.00     20000
+   macro avg       1.00      1.00      1.00     20000
+weighted avg       1.00      1.00      1.00     20000
+

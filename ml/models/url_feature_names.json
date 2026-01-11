@@ -1,0 +1,16 @@
+[
+  "url_length",
+  "has_ip",
+  "is_https",
+  "subdomain_count",
+  "has_port",
+  "suspicious_word_count",
+  "is_trusted",
+  "dot_count",
+  "dash_count",
+  "at_count",
+  "slash_count",
+  "question_count",
+  "equals_count",
+  "underscore_count"
+]

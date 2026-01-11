@@ -1,0 +1,64 @@
+======================================================================
+EMAIL PHISHING DETECTION - TRAINING REPORT
+======================================================================
+
+Training Date: 2026-01-11 13:34:19
+Best Model: Random Forest
+
+
+Logistic Regression
+--------------------------------------------------
+Accuracy:  0.9500
+Precision: 0.9497
+Recall:    0.9500
+F1-Score:  0.9490
+CV Score:  0.9490 (+/- 0.0052)
+
+Classification Report:
+              precision    recall  f1-score   support
+
+           0       0.95      0.98      0.97      1548
+           1       0.94      0.84      0.89       490
+
+    accuracy                           0.95      2038
+   macro avg       0.95      0.91      0.93      2038
+weighted avg       0.95      0.95      0.95      2038
+
+
+Random Forest
+--------------------------------------------------
+Accuracy:  0.9661
+Precision: 0.9659
+Recall:    0.9661
+F1-Score:  0.9659
+CV Score:  0.9596 (+/- 0.0035)
+
+Classification Report:
+              precision    recall  f1-score   support
+
+           0       0.97      0.98      0.98      1548
+           1       0.95      0.91      0.93       490
+
+    accuracy                           0.97      2038
+   macro avg       0.96      0.95      0.95      2038
+weighted avg       0.97      0.97      0.97      2038
+
+
+Naive Bayes
+--------------------------------------------------
+Accuracy:  0.9284
+Precision: 0.9279
+Recall:    0.9284
+F1-Score:  0.9281
+CV Score:  0.9314 (+/- 0.0068)
+
+Classification Report:
+              precision    recall  f1-score   support
+
+           0       0.95      0.96      0.95      1548
+           1       0.86      0.84      0.85       490
+
+    accuracy                           0.93      2038
+   macro avg       0.90      0.90      0.90      2038
+weighted avg       0.93      0.93      0.93      2038
+
