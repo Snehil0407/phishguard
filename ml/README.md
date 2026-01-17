@@ -6,9 +6,9 @@ AI-powered phishing detection models for Email, SMS, and URL analysis.
 
 | Type  | Best Model      | Accuracy | Features |
 |-------|----------------|----------|----------|
-| Email | Random Forest  | 96.61%   | TF-IDF (5000) |
-| SMS   | Random Forest  | 98.30%   | TF-IDF (3000) |
-| URL   | Random Forest  | 99.80%   | 14 features |
+| Email | XGBoost  | 96.22%   | TF-IDF (5000) |
+| SMS   | XGBoost  | 98.12%   | TF-IDF (3000) |
+| URL   | XGBoost  | 99.79%   | 14 features |
 
 ## 📁 Structure
 

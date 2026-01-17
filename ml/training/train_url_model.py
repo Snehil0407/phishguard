@@ -15,8 +15,8 @@ from datetime import datetime
 from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LogisticRegression
-from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
-from sklearn.svm import SVC
+from xgboost import XGBClassifier
+from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.metrics import (accuracy_score, precision_score, recall_score, 
                              f1_score, classification_report, confusion_matrix)
 
@@ -63,7 +63,7 @@ class URLModelTrainer:
         
         models_to_train = {
             'Logistic Regression': LogisticRegression(max_iter=1000, random_state=42),
-            'Random Forest': RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1),
+            'XGBoost': XGBClassifier(n_estimators=100, random_state=42, eval_metric='logloss', n_jobs=-1),
             'Gradient Boosting': GradientBoostingClassifier(n_estimators=100, random_state=42)
         }
         

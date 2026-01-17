@@ -2,8 +2,8 @@
 EMAIL PHISHING DETECTION - TRAINING REPORT
 ======================================================================
 
-Training Date: 2026-01-11 13:34:19
-Best Model: Random Forest
+Training Date: 2026-01-17 18:21:02
+Best Model: XGBoost
 
 
 Logistic Regression
@@ -25,23 +25,23 @@ Classification Report:
 weighted avg       0.95      0.95      0.95      2038
 
 
-Random Forest
+XGBoost
 --------------------------------------------------
-Accuracy:  0.9661
-Precision: 0.9659
-Recall:    0.9661
-F1-Score:  0.9659
-CV Score:  0.9596 (+/- 0.0035)
+Accuracy:  0.9622
+Precision: 0.9622
+Recall:    0.9622
+F1-Score:  0.9622
+CV Score:  0.9621 (+/- 0.0043)
 
 Classification Report:
               precision    recall  f1-score   support
 
            0       0.97      0.98      0.98      1548
-           1       0.95      0.91      0.93       490
+           1       0.92      0.92      0.92       490
 
-    accuracy                           0.97      2038
-   macro avg       0.96      0.95      0.95      2038
-weighted avg       0.97      0.97      0.97      2038
+    accuracy                           0.96      2038
+   macro avg       0.95      0.95      0.95      2038
+weighted avg       0.96      0.96      0.96      2038
 
 
 Naive Bayes

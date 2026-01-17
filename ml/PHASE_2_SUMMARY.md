@@ -9,26 +9,26 @@
 
 ### Email Phishing Detection
 ```
-✅ Accuracy: 96.61%
+✅ Accuracy: 96.22%
 📊 Dataset: 10,188 emails
-🏆 Best Model: Random Forest
-⚡ Training Time: ~45 seconds
+🏆 Best Model: XGBoost
+⚡ Training Time: ~88 seconds
 ```
 
 ### SMS Phishing Detection
 ```
-✅ Accuracy: 98.30%
+✅ Accuracy: 98.12%
 📊 Dataset: 5,572 messages
-🏆 Best Model: Random Forest
-⚡ Training Time: ~6 seconds
+🏆 Best Model: XGBoost
+⚡ Training Time: ~15 seconds
 ```
 
 ### URL Phishing Detection
 ```
-✅ Accuracy: 99.80%
+✅ Accuracy: 99.79%
 📊 Dataset: 100,000 URLs
-🏆 Best Model: Random Forest
-⚡ Training Time: ~19 seconds
+🏆 Best Model: XGBoost
+⚡ Training Time: ~18 seconds
 ```
 
 ---
@@ -139,10 +139,10 @@
 ### Model Performance
 | Metric | Email | SMS | URL |
 |--------|-------|-----|-----|
-| Accuracy | 96.61% | 98.30% | 99.80% |
-| Precision | 96.59% | 98.29% | 99.80% |
-| Recall | 96.61% | 98.30% | 99.80% |
-| F1-Score | 96.59% | 98.26% | 99.80% |
+| Accuracy | 96.22% | 98.12% | 99.79% |
+| Precision | 96.22% | 98.10% | 99.79% |
+| Recall | 96.22% | 98.12% | 99.79% |
+| F1-Score | 96.22% | 98.10% | 99.79% |
 
 ### Dataset Statistics
 | Type | Total Samples | Legitimate | Phishing |
@@ -154,10 +154,10 @@
 ### Training Performance
 | Model | Training Time | CV Score |
 |-------|--------------|----------|
-| Email | 45 seconds | 95.96% |
-| SMS | 6 seconds | 98.18% |
-| URL | 19 seconds | 99.78% |
-| **Total** | **1.16 minutes** | **97.97% avg** |
+| Email | 88 seconds | 96.21% |
+| SMS | 15 seconds | 97.98% |
+| URL | 18 seconds | 99.78% |
+| **Total** | **2.03 minutes** | **97.99% avg** |
 
 ---
 
