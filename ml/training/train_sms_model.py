@@ -20,8 +20,8 @@ from sklearn.naive_bayes import MultinomialNB
 from sklearn.metrics import (accuracy_score, precision_score, recall_score, 
                              f1_score, classification_report, confusion_matrix)
 
-from utils.data_loader import DatasetLoader
-from utils.text_preprocessing import TextPreprocessor, download_nltk_data
+from ml.utils.data_loader import DatasetLoader
+from ml.utils.text_preprocessing import TextPreprocessor, download_nltk_data
 
 
 class SMSModelTrainer:

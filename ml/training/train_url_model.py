@@ -20,8 +20,8 @@ from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.metrics import (accuracy_score, precision_score, recall_score, 
                              f1_score, classification_report, confusion_matrix)
 
-from utils.data_loader import DatasetLoader
-from utils.url_features import URLFeatureExtractor
+from ml.utils.data_loader import DatasetLoader
+from ml.utils.url_features import URLFeatureExtractor
 
 
 class URLModelTrainer:

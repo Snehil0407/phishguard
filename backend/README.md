@@ -37,5 +37,32 @@ The API will be available at: http://localhost:8000
 
 ## Endpoints
 
-- `GET /` - Root endpoint
-- `GET /health` - Health check
+### Core Endpoints
+- `GET /` - Root endpoint with API information
+- `GET /health` - Health check with model status
+
+### Analysis Endpoints
+- `POST /analyze/email` - Analyze email for phishing (requires: content, optional: subject)
+- `POST /analyze/sms` - Analyze SMS message for phishing (requires: message)
+- `POST /analyze/url` - Analyze URL for phishing (requires: url)
+
+## Testing
+
+Run comprehensive tests:
+```bash
+python test_api.py
+```
+
+Or quick test:
+```bash
+cd ..
+python quick_test.py
+```
+
+## Model Performance
+
+| Type  | Model    | Accuracy |
+|-------|----------|----------|
+| Email | XGBoost  | 96.22%   |
+| SMS   | XGBoost  | 98.12%   |
+| URL   | XGBoost  | 99.79%   |

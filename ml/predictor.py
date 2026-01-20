@@ -11,8 +11,8 @@ from pathlib import Path
 import sys
 sys.path.append(str(Path(__file__).parent.parent))
 
-from utils.text_preprocessing import TextPreprocessor
-from utils.url_features import URLFeatureExtractor
+from ml.utils.text_preprocessing import TextPreprocessor
+from ml.utils.url_features import URLFeatureExtractor
 
 
 class PhishGuardPredictor:
