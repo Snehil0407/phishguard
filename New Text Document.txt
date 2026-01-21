@@ -449,18 +449,43 @@ Create a user-friendly interface for phishing analysis.
 
 ---
 
-## PHASE 5: Browser Extension Development
+## PHASE 5: Awareness Module & Logging
 
 ### Objective
 
-Provide real-time URL phishing protection.
+Improve user education and traceability. Complete all website features before moving to browser extension.
+
+### Tasks
+
+* Create awareness content pages in web application
+* Design educational content about phishing types
+* Add common attack examples and safety tips
+* Store scan history in Firestore
+* Display past scans to users with filters
+* Implement user dashboard with analytics
+* Add phishing detection history timeline
+
+### Deliverables
+
+* Awareness module integrated in web app
+* Scan history feature with database logging
+* User dashboard with past analyses
+* Complete website functionality
+
+---
+
+## PHASE 6: Browser Extension Development
+
+### Objective
+
+Provide real-time URL phishing protection after website is complete.
 
 ### Tasks
 
 * Create Chrome extension using Manifest V3
 * Implement background service worker
 * Read active tab URL
-* Send URL to backend API
+* Send URL to backend API (reusing existing endpoints)
 * Display result in popup UI
 
 ### Visual Indicators
@@ -473,25 +498,7 @@ Provide real-time URL phishing protection.
 
 * Working browser extension
 * Backend-extension integration
-
----
-
-## PHASE 6: Awareness Module & Logging
-
-### Objective
-
-Improve user education and traceability.
-
-### Tasks
-
-* Create awareness content pages
-* Store scan history in Firestore
-* Display past scans to users
-
-### Deliverables
-
-* Awareness module
-* Scan history feature
+* Extension using same API as web app
 
 ---
 
