@@ -93,7 +93,7 @@ const EmailAnalysis = () => {
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
                   placeholder="Paste the full email content here..."
-                  rows="12"
+                  rows="8"
                   className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none"
                   required
                 ></textarea>
@@ -169,7 +169,7 @@ const EmailAnalysis = () => {
             {loading || result ? (
               <ResultCard result={result} loading={loading} />
             ) : (
-              <div className="bg-gradient-to-br from-gray-50 to-blue-50 rounded-2xl shadow-xl p-12 border border-gray-200 flex flex-col items-center justify-center text-center h-full">
+              <div className="bg-gradient-to-br from-gray-50 to-blue-50 rounded-2xl shadow-xl p-12 border border-gray-200 flex flex-col items-center justify-center text-center min-h-[400px]">
                 <div className="bg-white p-6 rounded-full mb-6 shadow-lg">
                   <Mail className="h-16 w-16 text-gray-400" />
                 </div>

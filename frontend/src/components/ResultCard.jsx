@@ -114,55 +114,143 @@ const ResultCard = ({ result, loading }) => {
           <div className="space-y-4">
             <h4 className="text-lg font-bold text-gray-800 mb-3">Analysis Details</h4>
             
-            {result.explanation.reason && (
-              <div className={`border-l-4 ${severityConfig.border} bg-gray-50 p-4 rounded-r-lg`}>
-                <p className="text-gray-700">{result.explanation.reason}</p>
-              </div>
-            )}
-
-            {result.explanation.indicators && result.explanation.indicators.length > 0 && (
-              <div>
-                <h5 className="font-semibold text-gray-700 mb-2">Detected Indicators:</h5>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                  {result.explanation.indicators.map((indicator, index) => (
-                    <motion.div
-                      key={index}
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: index * 0.1 }}
-                      className="flex items-center space-x-2 text-gray-600"
-                    >
-                      <div className={`h-2 w-2 rounded-full ${result.is_phishing ? 'bg-red-500' : 'bg-green-500'}`}></div>
-                      <span className="text-sm">{indicator}</span>
-                    </motion.div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {result.explanation.features && (
-              <div className="mt-4">
-                <h5 className="font-semibold text-gray-700 mb-2">Feature Analysis:</h5>
-                <div className="bg-gray-50 rounded-lg p-4 space-y-2">
-                  {Object.entries(result.explanation.features).map(([key, value], index) => (
-                    <div key={index} className="flex justify-between items-center text-sm">
-                      <span className="text-gray-600 capitalize">{key.replace(/_/g, ' ')}</span>
-                      <span className="font-semibold text-gray-800">{value}</span>
+            {/* Detected Indicators */}
+            <div>
+              <h5 className="font-semibold text-gray-700 mb-3">Detected Indicators:</h5>
+              <div className="space-y-3">
+                {result.explanation.phishing_keywords !== undefined && (
+                  <motion.div
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    className="flex items-center justify-between bg-gray-50 p-3 rounded-lg"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <div className={`h-2 w-2 rounded-full ${result.explanation.phishing_keywords > 0 ? 'bg-red-500' : 'bg-green-500'}`}></div>
+                      <span className="text-gray-700">Suspicious Keywords Found</span>
                     </div>
-                  ))}
-                </div>
+                    <span className={`font-semibold ${result.explanation.phishing_keywords > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                      {result.explanation.phishing_keywords}
+                    </span>
+                  </motion.div>
+                )}
+
+                {result.explanation.url_count !== undefined && (
+                  <motion.div
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.1 }}
+                    className="flex items-center justify-between bg-gray-50 p-3 rounded-lg"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <div className={`h-2 w-2 rounded-full ${result.explanation.url_count > 0 ? 'bg-orange-500' : 'bg-green-500'}`}></div>
+                      <span className="text-gray-700">URLs/Links Detected</span>
+                    </div>
+                    <span className={`font-semibold ${result.explanation.url_count > 0 ? 'text-orange-600' : 'text-green-600'}`}>
+                      {result.explanation.url_count}
+                    </span>
+                  </motion.div>
+                )}
+
+                {result.explanation.uppercase_ratio !== undefined && (
+                  <motion.div
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.2 }}
+                    className="flex items-center justify-between bg-gray-50 p-3 rounded-lg"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <div className={`h-2 w-2 rounded-full ${result.explanation.uppercase_ratio > 0.3 ? 'bg-yellow-500' : 'bg-green-500'}`}></div>
+                      <span className="text-gray-700">Uppercase Text Ratio</span>
+                    </div>
+                    <span className={`font-semibold ${result.explanation.uppercase_ratio > 0.3 ? 'text-yellow-600' : 'text-green-600'}`}>
+                      {(result.explanation.uppercase_ratio * 100).toFixed(1)}%
+                    </span>
+                  </motion.div>
+                )}
+
+                {result.explanation.text_length !== undefined && (
+                  <motion.div
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.3 }}
+                    className="flex items-center justify-between bg-gray-50 p-3 rounded-lg"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <div className="h-2 w-2 rounded-full bg-blue-500"></div>
+                      <span className="text-gray-700">Content Length</span>
+                    </div>
+                    <span className="font-semibold text-blue-600">
+                      {result.explanation.text_length} chars
+                    </span>
+                  </motion.div>
+                )}
+
+                {result.explanation.has_ip !== undefined && (
+                  <motion.div
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.4 }}
+                    className="flex items-center justify-between bg-gray-50 p-3 rounded-lg"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <div className={`h-2 w-2 rounded-full ${result.explanation.has_ip ? 'bg-red-500' : 'bg-green-500'}`}></div>
+                      <span className="text-gray-700">IP Address in URL</span>
+                    </div>
+                    <span className={`font-semibold ${result.explanation.has_ip ? 'text-red-600' : 'text-green-600'}`}>
+                      {result.explanation.has_ip ? 'Yes' : 'No'}
+                    </span>
+                  </motion.div>
+                )}
+
+                {result.explanation.suspicious_tld !== undefined && (
+                  <motion.div
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.5 }}
+                    className="flex items-center justify-between bg-gray-50 p-3 rounded-lg"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <div className={`h-2 w-2 rounded-full ${result.explanation.suspicious_tld ? 'bg-red-500' : 'bg-green-500'}`}></div>
+                      <span className="text-gray-700">Suspicious Domain</span>
+                    </div>
+                    <span className={`font-semibold ${result.explanation.suspicious_tld ? 'text-red-600' : 'text-green-600'}`}>
+                      {result.explanation.suspicious_tld ? 'Yes' : 'No'}
+                    </span>
+                  </motion.div>
+                )}
+
+                {result.explanation.url_length !== undefined && (
+                  <motion.div
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.6 }}
+                    className="flex items-center justify-between bg-gray-50 p-3 rounded-lg"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <div className={`h-2 w-2 rounded-full ${result.explanation.url_length > 75 ? 'bg-yellow-500' : 'bg-green-500'}`}></div>
+                      <span className="text-gray-700">URL Length</span>
+                    </div>
+                    <span className={`font-semibold ${result.explanation.url_length > 75 ? 'text-yellow-600' : 'text-green-600'}`}>
+                      {result.explanation.url_length} chars
+                    </span>
+                  </motion.div>
+                )}
               </div>
-            )}
+            </div>
+
+            {/* Safety Recommendation */}
+            <div className={`border-l-4 ${severityConfig.border} bg-gray-50 p-4 rounded-r-lg mt-4`}>
+              <p className="font-semibold text-gray-800 mb-2">
+                {result.is_phishing ? '⚠️ Recommendation:' : '✅ Safety Check:'}
+              </p>
+              <p className="text-gray-700">
+                {result.is_phishing 
+                  ? 'This content shows signs of phishing. Do not click any links, provide personal information, or respond. Delete it immediately and report if possible.'
+                  : 'This content appears to be legitimate. However, always verify sender identity and be cautious with sensitive information.'}
+              </p>
+            </div>
           </div>
         )}
-
-        {/* Model Info */}
-        <div className="mt-6 pt-6 border-t border-gray-200">
-          <div className="flex items-center justify-between text-sm text-gray-500">
-            <span>Model: {result.model_type.toUpperCase()}</span>
-            <span>Algorithm: XGBoost</span>
-          </div>
-        </div>
       </div>
     </motion.div>
   );

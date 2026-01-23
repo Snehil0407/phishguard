@@ -56,21 +56,21 @@ const Dashboard = () => {
       description: 'Check emails for phishing',
       icon: Mail,
       color: 'from-blue-500 to-cyan-500',
-      link: '/analyze/email'
+      link: '/email-analysis'
     },
     {
       title: 'SMS Analysis',
       description: 'Scan text messages',
       icon: MessageSquare,
       color: 'from-purple-500 to-pink-500',
-      link: '/analyze/sms'
+      link: '/sms-analysis'
     },
     {
       title: 'URL Analysis',
       description: 'Verify website safety',
       icon: LinkIcon,
       color: 'from-orange-500 to-red-500',
-      link: '/analyze/url'
+      link: '/url-analysis'
     }
   ];
 

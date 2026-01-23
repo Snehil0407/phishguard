@@ -33,11 +33,6 @@ const Footer = () => {
                   Dashboard
                 </Link>
               </li>
-              <li>
-                <Link to="/analyze/email" className="text-gray-400 hover:text-white transition-colors">
-                  Email Analysis
-                </Link>
-              </li>
             </ul>
           </div>
 
@@ -46,12 +41,17 @@ const Footer = () => {
             <h3 className="text-lg font-semibold mb-4">Analysis Tools</h3>
             <ul className="space-y-2">
               <li>
-                <Link to="/analyze/sms" className="text-gray-400 hover:text-white transition-colors">
+                <Link to="/email-analysis" className="text-gray-400 hover:text-white transition-colors">
+                  Email Analysis
+                </Link>
+              </li>
+              <li>
+                <Link to="/sms-analysis" className="text-gray-400 hover:text-white transition-colors">
                   SMS Analysis
                 </Link>
               </li>
               <li>
-                <Link to="/analyze/url" className="text-gray-400 hover:text-white transition-colors">
+                <Link to="/url-analysis" className="text-gray-400 hover:text-white transition-colors">
                   URL Analysis
                 </Link>
               </li>

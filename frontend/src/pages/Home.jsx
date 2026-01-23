@@ -9,29 +9,29 @@ const Home = () => {
       title: 'Email Analysis',
       description: 'Detect phishing attempts in email content with advanced NLP',
       color: 'from-blue-500 to-cyan-500',
-      link: '/analyze/email'
+      link: '/email-analysis'
     },
     {
       icon: MessageSquare,
       title: 'SMS Analysis',
       description: 'Identify suspicious text messages and smishing attacks',
       color: 'from-purple-500 to-pink-500',
-      link: '/analyze/sms'
+      link: '/sms-analysis'
     },
     {
       icon: LinkIcon,
       title: 'URL Analysis',
       description: 'Scan URLs for malicious domains and phishing sites',
       color: 'from-orange-500 to-red-500',
-      link: '/analyze/url'
+      link: '/url-analysis'
     }
   ];
 
   const stats = [
-    { label: 'Accuracy Rate', value: '98%+' },
     { label: 'Detection Types', value: '3' },
     { label: 'Response Time', value: '<2s' },
-    { label: 'AI Models', value: 'XGBoost' }
+    { label: 'Protected Users', value: '1000+' },
+    { label: 'Threats Blocked', value: '5000+' }
   ];
 
   const benefits = [
@@ -70,12 +70,11 @@ const Home = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.1 }}
-              className="text-5xl md:text-7xl font-bold mb-6 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent"
+              className="text-5xl md:text-7xl font-bold mb-6 pb-4 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent"
             >
               Protect Yourself from
               <br />
               Phishing Attacks
-              
             </motion.h1>
 
             <motion.p
@@ -92,7 +91,7 @@ const Home = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.3 }}
-              className="flex flex-col sm:flex-row gap-4 justify-center"
+              className="flex justify-center"
             >
               <Link
                 to="/dashboard"
@@ -100,12 +99,6 @@ const Home = () => {
               >
                 Get Started
                 <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
-              </Link>
-              <Link
-                to="/analyze/email"
-                className="inline-flex items-center justify-center px-8 py-4 bg-white text-gray-800 font-semibold rounded-xl shadow-lg hover:shadow-2xl transform hover:-translate-y-1 transition-all border-2 border-gray-200"
-              >
-                Try Analysis
               </Link>
             </motion.div>
           </div>
@@ -138,7 +131,7 @@ const Home = () => {
             className="text-center mb-16"
           >
             <h2 className="text-4xl md:text-5xl font-bold text-gray-800 mb-4">
-              Powerful Detection Tools
+              Detection Tools
             </h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
               Choose from multiple analysis methods to identify phishing threats
@@ -232,8 +225,8 @@ const Home = () => {
                       <Lock className="h-6 w-6 text-white" />
                     </div>
                     <div>
-                      <div className="text-sm text-gray-500">Security Score</div>
-                      <div className="text-2xl font-bold text-gray-800">98.2%</div>
+                      <div className="text-sm text-gray-500">Protection Status</div>
+                      <div className="text-2xl font-bold text-gray-800">Active</div>
                     </div>
                   </div>
                   <div className="flex items-center space-x-2">
@@ -242,29 +235,35 @@ const Home = () => {
                   </div>
                 </div>
                 
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-600">Email Detection</span>
-                    <span className="text-blue-600 font-semibold">96.2%</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div className="bg-gradient-to-r from-blue-500 to-blue-600 h-2 rounded-full" style={{ width: '96.2%' }}></div>
-                  </div>
-                  
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-600">SMS Detection</span>
-                    <span className="text-purple-600 font-semibold">98.1%</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div className="bg-gradient-to-r from-purple-500 to-purple-600 h-2 rounded-full" style={{ width: '98.1%' }}></div>
+                <div className="space-y-6">
+                  <div className="flex items-center space-x-4">
+                    <div className="bg-blue-100 p-3 rounded-lg">
+                      <Mail className="h-6 w-6 text-blue-600" />
+                    </div>
+                    <div>
+                      <div className="font-semibold text-gray-800">Email Protection</div>
+                      <div className="text-sm text-gray-600">Advanced threat detection</div>
+                    </div>
                   </div>
                   
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-600">URL Detection</span>
-                    <span className="text-orange-600 font-semibold">99.8%</span>
+                  <div className="flex items-center space-x-4">
+                    <div className="bg-purple-100 p-3 rounded-lg">
+                      <MessageSquare className="h-6 w-6 text-purple-600" />
+                    </div>
+                    <div>
+                      <div className="font-semibold text-gray-800">SMS Protection</div>
+                      <div className="text-sm text-gray-600">Smishing attack prevention</div>
+                    </div>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div className="bg-gradient-to-r from-orange-500 to-red-600 h-2 rounded-full" style={{ width: '99.8%' }}></div>
+                  
+                  <div className="flex items-center space-x-4">
+                    <div className="bg-orange-100 p-3 rounded-lg">
+                      <LinkIcon className="h-6 w-6 text-orange-600" />
+                    </div>
+                    <div>
+                      <div className="font-semibold text-gray-800">URL Protection</div>
+                      <div className="text-sm text-gray-600">Malicious link scanning</div>
+                    </div>
                   </div>
                 </div>
               </div>
