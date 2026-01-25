@@ -12,7 +12,7 @@ class DatasetLoader:
         self.base_path = "d:/Christ University/PG/6th trimester/phishguard/ml/datasets"
     
     def load_email_data(self):
-        """Load and combine all email datasets"""
+        """Load and combine all email datasets with subject + body"""
         print("\n📧 Loading email datasets...")
         
         email_dir = os.path.join(self.base_path, 'email', 'legitimate and phishing')
@@ -32,26 +32,34 @@ class DatasetLoader:
             print(f"  ⚠ Could not load PhishingEmailData.csv: {e}")
         
         try:
-            # Load Enron (has label column)
+            # Load Enron (has subject and body columns)
             enron_df = pd.read_csv(os.path.join(email_dir, 'Enron.csv'),
                                   encoding='latin-1', on_bad_lines='skip', nrows=5000)
             if 'body' in enron_df.columns and 'label' in enron_df.columns:
-                enron_df = enron_df[['body', 'label']].copy()
-                enron_df.rename(columns={'body': 'text'}, inplace=True)
+                # Combine subject + body for better detection
+                if 'subject' in enron_df.columns:
+                    enron_df['text'] = enron_df['subject'].fillna('') + ' ' + enron_df['body'].fillna('')
+                else:
+                    enron_df['text'] = enron_df['body'].fillna('')
+                enron_df = enron_df[['text', 'label']].copy()
                 all_data.append(enron_df)
-                print(f"  ✓ Enron.csv: {len(enron_df)} samples")
+                print(f"  ✓ Enron.csv: {len(enron_df)} samples (with subject + body)")
         except Exception as e:
             print(f"  ⚠ Could not load Enron.csv: {e}")
         
         try:
-            # Load SpamAssassin (has label column)
+            # Load SpamAssassin (has subject and body columns)
             spam_df = pd.read_csv(os.path.join(email_dir, 'SpamAssasin.csv'),
                                  encoding='latin-1', on_bad_lines='skip', nrows=5000)
             if 'body' in spam_df.columns and 'label' in spam_df.columns:
-                spam_df = spam_df[['body', 'label']].copy()
-                spam_df.rename(columns={'body': 'text'}, inplace=True)
+                # Combine subject + body for better detection
+                if 'subject' in spam_df.columns:
+                    spam_df['text'] = spam_df['subject'].fillna('') + ' ' + spam_df['body'].fillna('')
+                else:
+                    spam_df['text'] = spam_df['body'].fillna('')
+                spam_df = spam_df[['text', 'label']].copy()
                 all_data.append(spam_df)
-                print(f"  ✓ SpamAssasin.csv: {len(spam_df)} samples")
+                print(f"  ✓ SpamAssasin.csv: {len(spam_df)} samples (with subject + body)")
         except Exception as e:
             print(f"  ⚠ Could not load SpamAssasin.csv: {e}")
         
@@ -63,6 +71,7 @@ class DatasetLoader:
             print(f"✓ Total emails: {len(combined_df)}")
             print(f"  - Legitimate: {sum(combined_df['label'] == 0)}")
             print(f"  - Phishing/Spam: {sum(combined_df['label'] == 1)}")
+            print("  - Training on: subject + body combined")
             return combined_df
         else:
             print("⚠ No email data loaded")
@@ -113,9 +122,22 @@ class DatasetLoader:
             # Combine
             df = pd.concat([phishing_df, legit_df], ignore_index=True)
             df = df.dropna()
+            
+            # CRITICAL: Normalize URLs by adding https:// prefix if missing
+            # This ensures consistency between training and prediction
+            def normalize_url(url):
+                url = str(url).strip()
+                if not url.startswith(('http://', 'https://')):
+                    # Add https:// prefix for legitimate domains
+                    return 'https://' + url
+                return url
+            
+            df['url'] = df['url'].apply(normalize_url)
+            
             df = df.sample(frac=1, random_state=42).reset_index(drop=True)
             
             print(f"✓ Total URLs: {len(df)}")
+            print(f"  - URLs normalized with https:// prefix")
             return df
         except Exception as e:
             print(f"✗ Error loading URL data: {e}")

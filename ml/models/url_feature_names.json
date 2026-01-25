@@ -1,16 +1,25 @@
 [
   "url_length",
+  "is_long_url",
   "has_ip",
+  "has_typosquatting",
+  "has_excessive_subdomains",
   "is_https",
+  "is_url_shortener",
+  "suspicious_word_count",
+  "has_suspicious_chars",
+  "has_brand_mismatch",
+  "has_urgent_words",
+  "is_trusted",
   "subdomain_count",
   "has_port",
-  "suspicious_word_count",
-  "is_trusted",
   "dot_count",
   "dash_count",
   "at_count",
   "slash_count",
   "question_count",
   "equals_count",
-  "underscore_count"
+  "underscore_count",
+  "percent_count",
+  "ampersand_count"
 ]

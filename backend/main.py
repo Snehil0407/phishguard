@@ -22,13 +22,22 @@ logger = logging.getLogger(__name__)
 class EmailAnalysisRequest(BaseModel):
     """Request model for email analysis"""
     content: str = Field(..., min_length=1, description="Email content to analyze")
-    subject: Optional[str] = Field(None, description="Email subject line")
+    subject: str = Field(..., min_length=1, description="Email subject line (required)")
+    sender_email: Optional[str] = Field(None, description="Sender email address (optional, improves analysis)")
+    sender_display: Optional[str] = Field(None, description="Sender display name (optional, improves analysis)")
     
     @field_validator('content')
     @classmethod
     def validate_content(cls, v):
         if not v.strip():
             raise ValueError('Email content cannot be empty')
+        return v
+    
+    @field_validator('subject')
+    @classmethod
+    def validate_subject(cls, v):
+        if not v.strip():
+            raise ValueError('Email subject cannot be empty')
         return v
 
 class SMSAnalysisRequest(BaseModel):
@@ -122,23 +131,25 @@ async def health_check():
 @app.post("/analyze/email", response_model=AnalysisResponse)
 async def analyze_email(request: EmailAnalysisRequest):
     """
-    Analyze email content for phishing detection
+    Analyze email content for phishing detection with comprehensive analysis
     
     Args:
-        request: Email content with optional subject
+        request: Email with subject, content, and optional sender information
         
     Returns:
-        AnalysisResponse with prediction results
+        AnalysisResponse with prediction results and comprehensive analysis
     """
     if predictor is None:
         raise HTTPException(status_code=503, detail="ML models not loaded")
     
     try:
-        # Combine subject and content if subject is provided
-        content = f"{request.subject}\n\n{request.content}" if request.subject else request.content
-        
-        # Get prediction
-        result = predictor.predict_email(content)
+        # Get prediction with comprehensive analysis
+        result = predictor.predict_email(
+            email_text=request.content, 
+            email_subject=request.subject,
+            sender_email=request.sender_email or "",
+            sender_display=request.sender_display or ""
+        )
         
         logger.info(f"Email analysis completed: {result['severity']} risk")
         
@@ -148,7 +159,7 @@ async def analyze_email(request: EmailAnalysisRequest):
             risk_score=result['risk_score'],
             severity=result['severity'],
             explanation=result['explanation'],
-            model_type="email"
+            model_type=result.get('model_type', 'email')
         )
     
     except Exception as e:

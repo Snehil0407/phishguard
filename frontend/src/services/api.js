@@ -9,8 +9,18 @@ const api = axios.create({
   },
 });
 
-export const analyzeEmail = async (content, subject = '') => {
-  const response = await api.post('/analyze/email', { content, subject });
+export const analyzeEmail = async (content, subject = '', senderEmail = '') => {
+  const payload = { 
+    content, 
+    subject
+  };
+  
+  // Only include sender_email if provided
+  if (senderEmail && senderEmail.trim()) {
+    payload.sender_email = senderEmail.trim();
+  }
+  
+  const response = await api.post('/analyze/email', payload);
   return response.data;
 };
 

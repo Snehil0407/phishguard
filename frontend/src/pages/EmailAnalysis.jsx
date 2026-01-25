@@ -7,12 +7,18 @@ import ResultCard from '../components/ResultCard';
 const EmailAnalysis = () => {
   const [subject, setSubject] = useState('');
   const [content, setContent] = useState('');
+  const [senderEmail, setSenderEmail] = useState('');
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   const handleAnalyze = async (e) => {
     e.preventDefault();
+    
+    if (!subject.trim()) {
+      setError('Please enter email subject');
+      return;
+    }
     
     if (!content.trim()) {
       setError('Please enter email content');
@@ -24,7 +30,7 @@ const EmailAnalysis = () => {
     setResult(null);
 
     try {
-      const response = await analyzeEmail(content, subject);
+      const response = await analyzeEmail(content, subject, senderEmail);
       setResult(response);
     } catch (err) {
       setError(err.response?.data?.detail || 'Analysis failed. Please try again.');
@@ -36,6 +42,7 @@ const EmailAnalysis = () => {
   const handleClear = () => {
     setSubject('');
     setContent('');
+    setSenderEmail('');
     setResult(null);
     setError('');
   };
@@ -70,10 +77,27 @@ const EmailAnalysis = () => {
             <form onSubmit={handleAnalyze} className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
               <h2 className="text-2xl font-bold text-gray-800 mb-6">Email Details</h2>
               
+              {/* Sender Email Input */}
+              <div className="mb-6">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Sender Email Address
+                </label>
+                <input
+                  type="email"
+                  value={senderEmail}
+                  onChange={(e) => setSenderEmail(e.target.value)}
+                  placeholder="e.g., security@paypal.com (optional but recommended)"
+                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                />
+                <p className="text-sm text-gray-500 mt-1">
+                  💡 Including sender email improves detection accuracy by verifying domain authenticity
+                </p>
+              </div>
+              
               {/* Subject Input */}
               <div className="mb-6">
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Email Subject (Optional)
+                  Email Subject *
                 </label>
                 <input
                   type="text"
@@ -81,6 +105,7 @@ const EmailAnalysis = () => {
                   onChange={(e) => setSubject(e.target.value)}
                   placeholder="e.g., Urgent: Account Verification Required"
                   className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                  required
                 />
               </div>
 
@@ -152,10 +177,10 @@ const EmailAnalysis = () => {
             >
               <h3 className="font-semibold text-blue-900 mb-3">💡 Tips for Best Results</h3>
               <ul className="space-y-2 text-sm text-blue-800">
-                <li>• Include the complete email content</li>
-                <li>• Add the subject line for better accuracy</li>
-                <li>• Keep original formatting and links</li>
-                <li>• Include any suspicious attachments mentioned</li>
+                <li>• Include both subject line and email content (both required)</li>
+                <li>• Keep original formatting and links intact</li>
+                <li>• The system will automatically detect suspicious keywords and URLs</li>
+                <li>• Links found in the email will be analyzed for phishing</li>
               </ul>
             </motion.div>
           </motion.div>

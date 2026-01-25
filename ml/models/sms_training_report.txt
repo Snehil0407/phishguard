@@ -2,7 +2,7 @@
 SMS PHISHING DETECTION - TRAINING REPORT
 ======================================================================
 
-Training Date: 2026-01-17 18:21:17
+Training Date: 2026-01-23 12:24:42
 Best Model: XGBoost
 
 
