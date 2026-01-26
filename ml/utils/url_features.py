@@ -241,14 +241,27 @@ class URLFeatureExtractor:
             'paypal', 'amazon', 'google', 'microsoft', 'apple', 'facebook',
             'teams', 'outlook', 'office', 'onedrive', 'sharepoint', 'netflix',
             'instagram', 'linkedin', 'twitter', 'github', 'adobe', 'dropbox',
-            'zoom', 'slack', 'discord', 'spotify', 'steam', 'bank', 'chase'
+            'zoom', 'slack', 'discord', 'spotify', 'steam', 'bank', 'chase',
+            'fedex', 'ups', 'usps', 'dhl', 'delivery', 'track', 'parcel', 'package',
+            'shipment', 'courier', 'post', 'shipping', 'logistics',
+            # Government and authority keywords
+            'government', 'gov', 'official', 'ministry', 'department', 'pm', 'relief',
+            'benefit', 'scheme', 'welfare', 'subsidy', 'grant', 'tax', 'income',
+            'irs', 'sbi', 'pnb', 'hdfc', 'icici', 'axis', 'kotak',
+            # Financial keywords
+            'kyc', 'verify', 'account', 'update', 'claim', 'refund', 'reward',
+            'cashback', 'lottery', 'winner', 'prize'
         ]
         
         # RF #7: Excessive hyphens in domain (>1 is suspicious, especially with brand names)
         hyphen_count = domain.count('-')
-        # If domain has brand name and hyphens, it's likely phishing (e.g., teams-docs-access)
+        # If domain has brand name and hyphens, it's likely phishing (e.g., teams-docs-access, track-myparcel)
+        # Also flag delivery-related terms with hyphens
+        delivery_keywords = ['track', 'parcel', 'package', 'delivery', 'shipment', 'courier', 'fedex', 'ups', 'dhl', 'usps',
+                           'pm', 'gov', 'relief', 'benefit', 'scheme', 'tax', 'kyc', 'verify', 'claim', 'refund']
         has_brand_with_hyphens = hyphen_count > 0 and any(brand in domain_lower for brand in impersonation_brands)
-        rf7_excessive_hyphens = hyphen_count > 2 or has_brand_with_hyphens
+        has_delivery_with_hyphens = hyphen_count > 0 and any(keyword in domain_lower for keyword in delivery_keywords)
+        rf7_excessive_hyphens = hyphen_count > 2 or has_brand_with_hyphens or has_delivery_with_hyphens
         
         # RF #8: Random characters in domain (long sequences)
         rf8_random_chars = bool(re.search(r'[a-z0-9]{12,}', domain_lower))
@@ -256,7 +269,8 @@ class URLFeatureExtractor:
         # RF #9: Suspicious TLD
         suspicious_tlds = ['.xyz', '.top', '.click', '.tk', '.ml', '.ga', '.cf', '.gq', '.club', 
                           '.online', '.work', '.link', '.download', '.stream', '.review', '.racing',
-                          '.loan', '.bid', '.win', '.party', '.trade', '.science', '.date']
+                          '.loan', '.bid', '.win', '.party', '.trade', '.science', '.date', '.in',
+                          '.ru', '.cn', '.pw', '.cc']
         rf9_suspicious_tld = any(domain_lower.endswith(tld) for tld in suspicious_tlds)
         
         # RF #10: Domain name doesn't match brand

@@ -286,37 +286,6 @@ const Dashboard = () => {
             </div>
           </motion.div>
         </div>
-
-        {/* Performance Overview */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.8 }}
-          className="mt-8 bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 rounded-2xl shadow-2xl p-8 text-white"
-        >
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h2 className="text-3xl font-bold mb-2">System Performance</h2>
-              <p className="text-white/90">Your security is powered by advanced AI models</p>
-            </div>
-            <Shield className="h-16 w-16 text-white/30" />
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6">
-              <div className="text-4xl font-bold mb-2">96.2%</div>
-              <div className="text-white/90">Email Detection Accuracy</div>
-            </div>
-            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6">
-              <div className="text-4xl font-bold mb-2">98.1%</div>
-              <div className="text-white/90">SMS Detection Accuracy</div>
-            </div>
-            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6">
-              <div className="text-4xl font-bold mb-2">99.8%</div>
-              <div className="text-white/90">URL Detection Accuracy</div>
-            </div>
-          </div>
-        </motion.div>
       </div>
     </div>
   );

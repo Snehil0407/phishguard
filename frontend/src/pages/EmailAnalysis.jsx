@@ -178,7 +178,6 @@ const EmailAnalysis = () => {
             >
               <h3 className="font-semibold text-blue-900 mb-3">💡 Tips for Best Results</h3>
               <ul className="space-y-2 text-sm text-blue-800">
-                <li>• Include both subject line and email content (both required)</li>
                 <li>• Keep original formatting and links intact</li>
                 <li>• The system will automatically detect suspicious keywords and URLs</li>
                 <li>• Links found in the email will be analyzed for phishing</li>

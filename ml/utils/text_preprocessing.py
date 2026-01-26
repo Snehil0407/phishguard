@@ -232,7 +232,7 @@ class TextPreprocessor:
     
     def extract_urls(self, text):
         """
-        Extract URLs from text
+        Extract URLs from text - detects complete URLs, shortened URLs, and domain-only URLs
         
         Args:
             text: Input text string
@@ -240,9 +240,26 @@ class TextPreprocessor:
         Returns:
             List of URLs found in text
         """
+        all_urls = []
+        
+        # Pattern 1: Full URLs with protocol (http:// or https://)
         url_pattern = r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
         urls = re.findall(url_pattern, text)
-        return urls
+        all_urls.extend(urls)
+        
+        # Pattern 2: Shortened URLs without protocol (bit.ly/xxx, tinyurl.com/xxx, etc.)
+        shortened_pattern = r'\b(?:bit\.ly|tinyurl\.com|t\.co|goo\.gl|ow\.ly|is\.gd|short\.link|cutt\.ly|tiny\.cc|rb\.gy)/[a-zA-Z0-9_-]+'
+        shortened_urls = re.findall(shortened_pattern, text, re.IGNORECASE)
+        all_urls.extend(shortened_urls)
+        
+        # Pattern 3: Domain URLs without protocol (domain.com/path, subdomain.domain.com/path)
+        # Matches: word.word/path or word.word.word/path etc.
+        # Common TLDs and suspicious TLDs
+        domain_pattern = r'\b(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+(?:com|net|org|xyz|online|top|site|club|info|live|work|link|download|stream|review|racing|loan|bid|win|party|trade|science|date|click|shop|tech|store|space|website|app|dev|io|co|us|uk|in|au|ca)/[a-zA-Z0-9/_?=&.-]+'
+        domain_urls = re.findall(domain_pattern, text, re.IGNORECASE)
+        all_urls.extend(domain_urls)
+        
+        return all_urls
     
     def count_phishing_keywords(self, text):
         """
@@ -1060,6 +1077,286 @@ class TextPreprocessor:
         # Check if at least 50% of subject words appear in content
         matches = sum(1 for word in subject_words if word in content_lower)
         return len(subject_words) > 0 and matches / len(subject_words) >= 0.5
+    
+    def analyze_sms_comprehensively(self, sms_text):
+        """
+        Comprehensive SMS analysis with 40 RED FLAGS and 40 GREEN FLAGS
+        Returns detailed analysis with all flag states for SMS phishing detection
+        """
+        text_lower = sms_text.lower()
+        text_stats = self.get_text_statistics(sms_text)
+        
+        # ===== 40 RED FLAGS =====
+        
+        # RF1-5: Urgent/Threat Language
+        urgent_keywords = ['immediate', 'urgent', 'action required', 'act now', 'immediately', 'asap', 'right now']
+        rf1_urgent_language = any(kw in text_lower for kw in urgent_keywords)
+        
+        threat_keywords = ['blocked', 'suspended', 'terminated', 'cancelled', 'closed', 'locked', 'deactivated']
+        rf2_threats = any(kw in text_lower for kw in threat_keywords)
+        
+        suspicious_activity = ['suspicious activity', 'unusual activity', 'unauthorized', 'fraud', 'breach']
+        rf3_suspicious_activity = any(kw in text_lower for kw in suspicious_activity)
+        
+        prize_keywords = ['won', 'winner', 'prize', 'lottery', 'congratulations', 'selected', 'claim']
+        rf4_prize_claims = any(kw in text_lower for kw in prize_keywords)
+        
+        verification_keywords = ['verify', 'verification', 'confirm', 'validate', 'authenticate']
+        rf5_verification_demands = any(kw in text_lower for kw in verification_keywords)
+        
+        # RF6-10: URLs and Links
+        urls = self.extract_urls(sms_text)
+        shortener_domains = ['bit.ly', 'tinyurl', 't.co', 'goo.gl', 'ow.ly', 'is.gd', 'short.link', 'cutt.ly', 'tiny.cc', 'rb.gy']
+        rf6_shortened_urls = any(short in text_lower for short in shortener_domains) or len(urls) > 0
+        
+        brand_names = ['paytm', 'phonepe', 'googlepay', 'amazon', 'flipkart', 'bank', 'hdfc', 'icici', 'sbi']
+        rf7_misspelled_brands = False  # Would need advanced spell checking
+        
+        rf8_grammar_errors, _ = self.detect_grammar_issues(sms_text)
+        
+        credential_requests = ['otp', 'pin', 'password', 'cvv', 'card number', 'expiry', 'passcode']
+        rf9_credential_requests = any(kw in text_lower for kw in credential_requests)
+        
+        secure_keywords = ['secure your account', 'click to secure', 'protect your account', 'verify to secure']
+        rf10_secure_account_requests = any(kw in text_lower for kw in secure_keywords)
+        
+        # RF11-15: Fake Notifications
+        delivery_fake = ['delivery issue', 'delivery failed', 'package waiting', 'reattempt delivery']
+        rf11_fake_delivery = any(kw in text_lower for kw in delivery_fake)
+        
+        payment_fake = ['payment failed', 'transaction failed', 'payment declined', 'card expired']
+        rf12_payment_failure = any(kw in text_lower for kw in payment_fake) and 'reference' not in text_lower
+        
+        warning_keywords = ['last warning', 'final notice', 'final warning', 'last chance']
+        rf13_pressure_tactics = any(kw in text_lower for kw in warning_keywords)
+        
+        kyc_keywords = ['update kyc', 'kyc pending', 'complete kyc', 'kyc expired', 'kyc verification', 'kyc today', 'kyc now']
+        rf14_kyc_requests = any(kw in text_lower for kw in kyc_keywords)
+        
+        impersonation_keywords = ['from bank', 'from government', 'tax department', 'income tax', 'police',
+                                 'pm relief', 'ministry', 'government scheme', 'official', 'department of',
+                                 'central government', 'state government', 'pm scheme', 'relief fund',
+                                 'welfare scheme', 'subsidy', 'government benefit', 'approved by']
+        rf15_authority_impersonation = any(kw in text_lower for kw in impersonation_keywords)
+        
+        # RF16-20: Links and Domains
+        rf16_suspicious_domains = len(urls) > 0 and not any('https://' in url for url in urls)
+        
+        too_good_offers = ['free', 'cashback', '100% off', 'unlimited', 'lifetime', 'approved', 'benefit',
+                          'relief fund', 'government scheme', 'pm scheme', 'subsidy', 'grant']
+        rf17_too_good_offers = any(kw in text_lower for kw in too_good_offers)
+        
+        generic_greetings = ['dear customer', 'dear user', 'dear member', 'hello user']
+        rf18_generic_greeting = any(kw in text_lower for kw in generic_greetings)
+        
+        urgent_emojis = sms_text.count('⚠️') + sms_text.count('🚨') + sms_text.count('❗')
+        rf19_urgent_emojis = urgent_emojis > 0
+        
+        # Check for random mixed caps OR all caps words (like CONGRATULATIONS, WON, CLAIM)
+        all_caps_words = re.findall(r'\b[A-Z]{4,}\b', sms_text)
+        rf20_random_caps = bool(re.search(r'[a-z][A-Z][a-z]', sms_text)) or len(all_caps_words) >= 2
+        
+        # RF21-25: Suspicious Actions
+        reply_requests = ['reply with', 'send us', 'text back', 'respond with']
+        rf21_reply_with_sensitive = any(kw in text_lower for kw in reply_requests)
+        
+        refund_keywords = ['refund pending', 'claim refund', 'refund available', 'get refund']
+        rf22_unexpected_refund = any(kw in text_lower for kw in refund_keywords)
+        
+        # Check if message was sent at odd hours (can't determine from text alone)
+        rf23_odd_hours = False
+        
+        job_keywords = ['job offer', 'work from home', 'earn money', 'part time job', 'hiring']
+        rf24_fake_job_offers = any(kw in text_lower for kw in job_keywords)
+        
+        rf25_inconsistent_grammar = rf8_grammar_errors and any(brand in text_lower for brand in brand_names)
+        
+        # RF26-30: App and Installation
+        install_keywords = ['install app', 'download app', 'get app', 'install now']
+        rf26_app_install = any(kw in text_lower for kw in install_keywords)
+        
+        legal_keywords = ['legal action', 'court', 'lawsuit', 'arrest', 'fine', 'penalty']
+        rf27_legal_threats = any(kw in text_lower for kw in legal_keywords)
+        
+        verify_button = ['verify now', 'click here', 'tap here', 'click to verify']
+        rf28_verify_buttons = any(kw in text_lower for kw in verify_button)
+        
+        fake_cashback = ['cashback', 'cash back', 'reward points'] and rf17_too_good_offers
+        rf29_fake_cashback = 'cashback' in text_lower or 'cash back' in text_lower
+        
+        scare_keywords = ['compromised', 'hacked', 'stolen', 'leaked', 'exposed']
+        rf30_scare_tactics = any(kw in text_lower for kw in scare_keywords)
+        
+        # RF31-35: Formatting Issues
+        rf31_unusual_spacing = '  ' in sms_text or '\t' in sms_text
+        
+        rf32_unknown_params = bool(re.search(r'\?[a-z]+=', text_lower)) if urls else False
+        
+        rf33_unknown_transactions = ('transaction' in text_lower or 'payment' in text_lower) and not any(x in text_lower for x in ['ref', 'reference', 'txn id', 'utr'])
+        
+        call_keywords = ['call us', 'call now', 'contact us at']
+        rf34_suspicious_number = any(kw in text_lower for kw in call_keywords) and bool(re.search(r'\d{10}', sms_text))
+        
+        rf35_spoofed_service = any(brand in text_lower for brand in brand_names) and (rf6_shortened_urls or rf16_suspicious_domains)
+        
+        # RF36-40: Final Checks
+        rf36_content_link_mismatch = False  # Would need URL analysis
+        
+        rf37_excessive_punctuation = sms_text.count('!') > 2 or sms_text.count('?') > 2
+        
+        rf38_no_https = len(urls) > 0 and not any('https://' in url for url in urls)
+        
+        expiry_keywords = ['expires', 'expire', 'expiring', 'limited time', 'valid till']
+        rf39_limited_time = any(kw in text_lower for kw in expiry_keywords)
+        
+        personal_info = ['name', 'address', 'date of birth', 'dob', 'pan', 'aadhar', 'ssn', 'aadhaar']
+        rf40_personal_details = any(kw in text_lower for kw in personal_info)
+        
+        # Check for amount/money mentions with action keywords (common in scams)
+        has_amount = bool(re.search(r'[₹$€£]\s?\d+|rs\.?\s?\d+|amount|money', text_lower))
+        has_action = any(kw in text_lower for kw in ['claim', 'receive', 'collect', 'get', 'approved', 'pending'])
+        rf41_financial_lure = has_amount and has_action
+        
+        # ===== 40 GREEN FLAGS =====
+        
+        # GF1-5: Professional Communication
+        gf1_clear_concise = len(sms_text.split()) <= 50 and not rf37_excessive_punctuation and not rf20_random_caps
+        gf2_no_sensitive_request = not rf9_credential_requests and not rf40_personal_details
+        gf3_informational_tone = not rf1_urgent_language and not rf2_threats and not rf4_prize_claims
+        gf4_no_links = len(urls) == 0
+        
+        recent_activity_keywords = ['recent', 'your order', 'your booking', 'your appointment']
+        gf5_references_activity = any(kw in text_lower for kw in recent_activity_keywords)
+        
+        # GF6-10: Quality
+        gf6_correct_spelling = not rf8_grammar_errors
+        gf7_proper_formatting = not rf31_unusual_spacing and not rf20_random_caps
+        
+        expected_services = ['delivered', 'confirmed', 'scheduled', 'reminder']
+        gf8_matches_service = any(kw in text_lower for kw in expected_services)
+        
+        gf9_no_threats = not rf2_threats and not rf13_pressure_tactics
+        
+        masked_info = bool(re.search(r'\*{4}\d{4}', sms_text))
+        gf10_masked_info = masked_info
+        
+        # GF11-15: Transaction Alerts
+        txn_keywords = ['txn', 'transaction', 'debited', 'credited', 'ref no', 'utr']
+        gf11_transaction_alert = any(kw in text_lower for kw in txn_keywords) and not rf1_urgent_language
+        
+        tracking_pattern = bool(re.search(r'tracking.?(id|number|no)', text_lower))
+        gf12_delivery_tracking = tracking_pattern
+        
+        reminder_keywords = ['reminder', 'appointment', 'scheduled', 'upcoming']
+        gf13_reminder_notification = any(kw in text_lower for kw in reminder_keywords)
+        
+        gf14_neutral_language = not rf1_urgent_language and not rf30_scare_tactics
+        gf15_no_shortened_urls = not rf6_shortened_urls
+        
+        # GF16-20: No Manipulation
+        gf16_no_reply_request = not rf21_reply_with_sensitive
+        gf17_clear_purpose = len(sms_text.split()) >= 5 and gf1_clear_concise and not rf4_prize_claims
+        gf18_professional_wording = gf6_correct_spelling and gf7_proper_formatting and not rf20_random_caps
+        gf19_no_exaggeration = not rf17_too_good_offers and not rf4_prize_claims
+        gf20_business_tone = not rf19_urgent_emojis and gf18_professional_wording and not rf4_prize_claims
+        
+        # GF21-25: Official Communication
+        official_keywords = ['customer support', 'help center', 'visit our app', 'check app']
+        gf21_official_support = any(kw in text_lower for kw in official_keywords) and not rf4_prize_claims
+        
+        gf22_no_emotional_manipulation = not rf30_scare_tactics and not rf4_prize_claims
+        gf23_appropriate_timing = not rf23_odd_hours
+        gf24_no_attachments = 'download' not in text_lower and 'attachment' not in text_lower and not rf26_app_install
+        gf25_consistent_caps = not rf20_random_caps
+        
+        # GF26-30: Communication Pattern
+        gf26_previous_communication = False  # Would need history
+        gf27_no_countdown = not rf39_limited_time
+        gf28_no_verification = not rf5_verification_demands
+        gf29_no_suspicious_symbols = not rf31_unusual_spacing
+        
+        opt_out = bool(re.search(r'reply.?stop', text_lower)) or 'unsubscribe' in text_lower
+        gf30_legitimate_optout = opt_out
+        
+        # GF31-35: Official Keywords
+        official_markers = ['ref no', 'txn id', 'utr', 'order id', 'booking id']
+        gf31_official_keywords = any(kw in text_lower for kw in official_markers) and not rf4_prize_claims
+        
+        gf32_no_financial_demand = 'pay now' not in text_lower and 'send money' not in text_lower and not rf4_prize_claims
+        gf33_no_prize_claim = not rf4_prize_claims
+        gf34_no_external_redirect = gf4_no_links or (len(urls) > 0 and all('https://' in url for url in urls) and not rf6_shortened_urls)
+        gf35_plain_text = not rf19_urgent_emojis and len(urls) <= 1 and not rf4_prize_claims
+        
+        # GF36-40: Final Quality Checks
+        gf36_predictable_structure = gf17_clear_purpose and gf18_professional_wording and not rf4_prize_claims
+        gf37_policy_update = ('policy' in text_lower or 'terms' in text_lower or 'update' in text_lower) and not rf4_prize_claims
+        gf38_no_legal_threats = not rf27_legal_threats
+        gf39_no_authority_impersonation = not rf15_authority_impersonation
+        gf40_encourages_app = ('use our app' in text_lower or 'check our app' in text_lower or 'via app' in text_lower) and not rf4_prize_claims
+        
+        # Collect all flags
+        red_flag_values = [
+            rf1_urgent_language, rf2_threats, rf3_suspicious_activity, rf4_prize_claims, rf5_verification_demands,
+            rf6_shortened_urls, rf7_misspelled_brands, rf8_grammar_errors, rf9_credential_requests, rf10_secure_account_requests,
+            rf11_fake_delivery, rf12_payment_failure, rf13_pressure_tactics, rf14_kyc_requests, rf15_authority_impersonation,
+            rf16_suspicious_domains, rf17_too_good_offers, rf18_generic_greeting, rf19_urgent_emojis, rf20_random_caps,
+            rf21_reply_with_sensitive, rf22_unexpected_refund, rf23_odd_hours, rf24_fake_job_offers, rf25_inconsistent_grammar,
+            rf26_app_install, rf27_legal_threats, rf28_verify_buttons, rf29_fake_cashback, rf30_scare_tactics,
+            rf31_unusual_spacing, rf32_unknown_params, rf33_unknown_transactions, rf34_suspicious_number, rf35_spoofed_service,
+            rf36_content_link_mismatch, rf37_excessive_punctuation, rf38_no_https, rf39_limited_time, rf40_personal_details,
+            rf41_financial_lure
+        ]
+        
+        green_flag_values = [
+            gf1_clear_concise, gf2_no_sensitive_request, gf3_informational_tone, gf4_no_links, gf5_references_activity,
+            gf6_correct_spelling, gf7_proper_formatting, gf8_matches_service, gf9_no_threats, gf10_masked_info,
+            gf11_transaction_alert, gf12_delivery_tracking, gf13_reminder_notification, gf14_neutral_language, gf15_no_shortened_urls,
+            gf16_no_reply_request, gf17_clear_purpose, gf18_professional_wording, gf19_no_exaggeration, gf20_business_tone,
+            gf21_official_support, gf22_no_emotional_manipulation, gf23_appropriate_timing, gf24_no_attachments, gf25_consistent_caps,
+            gf26_previous_communication, gf27_no_countdown, gf28_no_verification, gf29_no_suspicious_symbols, gf30_legitimate_optout,
+            gf31_official_keywords, gf32_no_financial_demand, gf33_no_prize_claim, gf34_no_external_redirect, gf35_plain_text,
+            gf36_predictable_structure, gf37_policy_update, gf38_no_legal_threats, gf39_no_authority_impersonation, gf40_encourages_app
+        ]
+        
+        # Create flag names for display
+        red_flag_names = [
+            'Urgent Language', 'Threats', 'Suspicious Activity', 'Prize Claims', 'Verification Demands',
+            'Shortened URLs', 'Misspelled Brands', 'Grammar Errors', 'Credential Requests', 'Secure Account Requests',
+            'Fake Delivery', 'Payment Failure', 'Pressure Tactics', 'KYC Requests', 'Authority Impersonation',
+            'Suspicious Domains', 'Too Good Offers', 'Generic Greeting', 'Urgent Emojis', 'Random Caps',
+            'Reply With Sensitive', 'Unexpected Refund', 'Odd Hours', 'Fake Job Offers', 'Inconsistent Grammar',
+            'App Install', 'Legal Threats', 'Verify Buttons', 'Fake Cashback', 'Scare Tactics',
+            'Unusual Spacing', 'Unknown Params', 'Unknown Transactions', 'Suspicious Number', 'Spoofed Service',
+            'Content Link Mismatch', 'Excessive Punctuation', 'No HTTPS', 'Limited Time', 'Personal Details Request',
+            'Financial Lure'
+        ]
+        
+        green_flag_names = [
+            'Clear Concise', 'No Sensitive Request', 'Informational Tone', 'No Links', 'References Activity',
+            'Correct Spelling', 'Proper Formatting', 'Matches Service', 'No Threats', 'Masked Info',
+            'Transaction Alert', 'Delivery Tracking', 'Reminder Notification', 'Neutral Language', 'No Shortened URLs',
+            'No Reply Request', 'Clear Purpose', 'Professional Wording', 'No Exaggeration', 'Business Tone',
+            'Official Support', 'No Emotional Manipulation', 'Appropriate Timing', 'No Attachments', 'Consistent Caps',
+            'Previous Communication', 'No Countdown', 'No Verification', 'No Suspicious Symbols', 'Legitimate Optout',
+            'Official Keywords', 'No Financial Demand', 'No Prize Claim', 'No External Redirect', 'Plain Text',
+            'Predictable Structure', 'Policy Update', 'No Legal Threats', 'No Authority Impersonation', 'Encourages App'
+        ]
+        
+        # Get active flags
+        active_red_flags = [red_flag_names[i] for i, val in enumerate(red_flag_values) if val]
+        active_green_flags = [green_flag_names[i] for i, val in enumerate(green_flag_values) if val]
+        
+        red_flag_count = sum(red_flag_values)
+        green_flag_count = sum(green_flag_values)
+        
+        return {
+            'red_flags': active_red_flags,
+            'red_flag_count': red_flag_count,
+            'green_flags': active_green_flags,
+            'green_flag_count': green_flag_count,
+            'urls_found': urls,
+            'has_urls': len(urls) > 0
+        }
 
 
 if __name__ == "__main__":

@@ -530,37 +530,69 @@ class PhishGuardPredictor:
             }
         
         try:
+            # STEP 1: Comprehensive SMS Analysis BEFORE ML prediction
+            comprehensive_analysis = self.sms_preprocessor.analyze_sms_comprehensively(sms_text)
+            
+            red_flags = comprehensive_analysis['red_flags']
+            green_flags = comprehensive_analysis['green_flags']
+            red_flag_count = comprehensive_analysis['red_flag_count']
+            green_flag_count = comprehensive_analysis['green_flag_count']
+            urls_found = comprehensive_analysis['urls_found']
+            
+            # STEP 2: Scan URLs found in SMS using URL scanner
+            suspicious_urls = []
+            safe_urls = []
+            if urls_found and self.url_model:
+                for url in urls_found[:5]:  # Limit to 5 URLs
+                    url_result = self.predict_url(url)
+                    if url_result.get('is_phishing', False):
+                        suspicious_urls.append({
+                            'url': url,
+                            'risk': url_result.get('risk_score', 0),
+                            'red_flags': url_result.get('explanation', {}).get('red_flag_count', 0)
+                        })
+                    else:
+                        safe_urls.append(url)
+            
+            # STEP 3: ML Model Prediction
             processed_text = self.sms_preprocessor.preprocess(sms_text)
             text_vector = self.sms_vectorizer.transform([processed_text])
             
             prediction = self.sms_model.predict(text_vector)[0]
             probabilities = self.sms_model.predict_proba(text_vector)[0]
-            confidence = float(probabilities[prediction])
+            ml_confidence = float(probabilities[prediction])
             
-            # Extract detailed features
-            stats = self.sms_preprocessor.get_text_statistics(sms_text)
-            found_keywords = self.sms_preprocessor.find_phishing_keywords(sms_text)
-            found_urls = self.sms_preprocessor.extract_urls(sms_text)
-            
-            # Analyze found URLs
-            suspicious_urls = []
-            if found_urls and self.url_model:
-                for url in found_urls[:5]:
-                    url_result = self.predict_url(url)
-                    if url_result.get('is_phishing', False):
-                        suspicious_urls.append({
-                            'url': url,
-                            'risk': url_result.get('risk_score', 0)
-                        })
+            # STEP 4: Adjust prediction based on comprehensive analysis + URL scan
+            adjusted_confidence = ml_confidence
+            final_prediction = prediction
             
             # CRITICAL: If ANY suspicious/malicious URL found, ALWAYS classify as PHISHING
             if len(suspicious_urls) > 0:
-                prediction = 1  # Phishing
-                confidence = max(confidence, 0.95)  # Very high confidence
-                risk_score = int(confidence * 100)
+                final_prediction = 1  # Phishing
+                adjusted_confidence = max(ml_confidence, 0.95)  # Very high confidence
                 severity = "high"
+                risk_score = int(adjusted_confidence * 100)
+            
+            # If high red flag count (>8), increase phishing likelihood
+            elif red_flag_count > 8:
+                final_prediction = 1
+                adjusted_confidence = max(ml_confidence, 0.85)
+                risk_score = int(adjusted_confidence * 100)
+                severity = "high" if risk_score >= 70 else "medium"
+            
+            # If very high green flag count (>15) and low red flags, likely safe
+            elif green_flag_count > 15 and red_flag_count < 3:
+                final_prediction = 0  # Safe
+                adjusted_confidence = max(ml_confidence, 0.85)
+                risk_score = int((1 - adjusted_confidence) * 100)
+                severity = "low"
+            
             else:
-                risk_score = int(confidence * 100) if prediction == 1 else int((1 - confidence) * 100)
+                # Use ML prediction
+                confidence_adjustment = (green_flag_count - red_flag_count) * 0.01
+                adjusted_confidence = max(0.1, min(0.99, ml_confidence + confidence_adjustment))
+                final_prediction = prediction
+                risk_score = int(adjusted_confidence * 100) if final_prediction == 1 else int((1 - adjusted_confidence) * 100)
                 
                 if risk_score >= 70:
                     severity = "high"
@@ -569,18 +601,31 @@ class PhishGuardPredictor:
                 else:
                     severity = "low"
             
+            # Extract additional stats
+            stats = self.sms_preprocessor.get_text_statistics(sms_text)
+            found_keywords = self.sms_preprocessor.find_phishing_keywords(sms_text)
+            
             result = {
-                "is_phishing": bool(prediction == 1),
-                "confidence": confidence,
+                "is_phishing": bool(final_prediction == 1),
+                "confidence": adjusted_confidence,
                 "risk_score": risk_score,
                 "severity": severity,
                 "explanation": {
-                    "phishing_keywords": stats['phishing_keyword_count'],
+                    "phishing_keywords": len(found_keywords),
                     "keywords_found": found_keywords[:10],
-                    "url_count": stats['url_count'],
-                    "urls_found": found_urls[:5],
+                    "url_count": len(urls_found),
+                    "urls_found": urls_found[:5],
                     "suspicious_urls": suspicious_urls,
-                    "text_length": stats['length']
+                    "safe_urls": safe_urls[:3],
+                    "text_length": stats['length'],
+                    
+                    # Comprehensive flag summary
+                    "red_flag_count": red_flag_count,
+                    "red_flags": red_flags,
+                    "green_flag_count": green_flag_count,
+                    "green_flags": green_flags,
+                    
+                    "analysis_method": "comprehensive_40_flags_sms_hybrid"
                 },
                 "model_type": "sms"
             }
