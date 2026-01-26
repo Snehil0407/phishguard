@@ -23,7 +23,7 @@ class EmailAnalysisRequest(BaseModel):
     """Request model for email analysis"""
     content: str = Field(..., min_length=1, description="Email content to analyze")
     subject: str = Field(..., min_length=1, description="Email subject line (required)")
-    sender_email: Optional[str] = Field(None, description="Sender email address (optional, improves analysis)")
+    sender_email: str = Field(..., min_length=1, description="Sender email address (required)")
     sender_display: Optional[str] = Field(None, description="Sender display name (optional, improves analysis)")
     
     @field_validator('content')
@@ -39,6 +39,15 @@ class EmailAnalysisRequest(BaseModel):
         if not v.strip():
             raise ValueError('Email subject cannot be empty')
         return v
+    
+    @field_validator('sender_email')
+    @classmethod
+    def validate_sender_email(cls, v):
+        if not v or not v.strip():
+            raise ValueError('Sender email address is required')
+        if '@' not in v:
+            raise ValueError('Invalid email address format')
+        return v.strip()
 
 class SMSAnalysisRequest(BaseModel):
     """Request model for SMS analysis"""

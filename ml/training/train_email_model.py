@@ -22,6 +22,8 @@ from sklearn.metrics import (accuracy_score, precision_score, recall_score,
 
 from ml.utils.data_loader import DatasetLoader
 from ml.utils.text_preprocessing import TextPreprocessor, download_nltk_data
+from scipy.sparse import hstack
+import re
 
 
 class EmailModelTrainer:
@@ -35,11 +37,111 @@ class EmailModelTrainer:
         self.results = {}
         self.best_model = None
         self.best_model_name = None
+        
+        # Trusted domains for email features
+        self.trusted_domains = [
+            'google.com', 'gmail.com', 'yahoo.com', 'microsoft.com',
+            'outlook.com', 'amazon.com', 'apple.com', 'paypal.com'
+        ]
+        
+        # Free email providers
+        self.free_email_providers = [
+            'gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com',
+            'aol.com', 'mail.com', 'protonmail.com', 'yandex.com'
+        ]
+        
+        # Suspicious TLDs
+        self.suspicious_tlds = [
+            '.xyz', '.top', '.club', '.work', '.click', '.link',
+            '.stream', '.download', '.gq', '.ml', '.ga', '.cf', '.tk'
+        ]
+    
+    def extract_email_features(self, sender_email):
+        """Extract features from sender email address"""
+        features = {}
+        
+        try:
+            email = str(sender_email).lower().strip()
+            
+            # Extract domain
+            if '@' in email:
+                domain = email.split('@')[-1]
+            else:
+                domain = 'unknown'
+            
+            # Feature 1: Is trusted domain
+            features['is_trusted_domain'] = int(domain in self.trusted_domains)
+            
+            # Feature 2: Is free email provider
+            features['is_free_email'] = int(domain in self.free_email_providers)
+            
+            # Feature 3: Has suspicious TLD
+            features['has_suspicious_tld'] = int(any(domain.endswith(tld) for tld in self.suspicious_tlds))
+            
+            # Feature 4: Domain length
+            features['domain_length'] = len(domain)
+            
+            # Feature 5: Number of dots in domain
+            features['domain_dots'] = domain.count('.')
+            
+            # Feature 6: Has numbers in domain
+            features['domain_has_numbers'] = int(bool(re.search(r'\d', domain)))
+            
+            # Feature 7: Domain has hyphens
+            features['domain_has_hyphens'] = int('-' in domain)
+            
+            # Feature 8: Username length (before @)
+            username = email.split('@')[0] if '@' in email else ''
+            features['username_length'] = len(username)
+            
+            # Feature 9: Username has numbers
+            features['username_has_numbers'] = int(bool(re.search(r'\d', username)))
+            
+            # Feature 10: Username has special chars
+            features['username_special_chars'] = int(bool(re.search(r'[^a-z0-9._-]', username)))
+            
+            # Feature 11: Suspicious patterns (noreply, admin, support without proper domain)
+            suspicious_usernames = ['noreply', 'admin', 'support', 'info', 'alert', 'security']
+            features['suspicious_username'] = int(
+                any(sus in username for sus in suspicious_usernames) and 
+                domain not in self.trusted_domains
+            )
+            
+            # Feature 12: Email entropy (randomness indicator)
+            features['email_entropy'] = self._calculate_entropy(email)
+            
+        except Exception as e:
+            # Default features if extraction fails
+            features = {
+                'is_trusted_domain': 0, 'is_free_email': 0, 'has_suspicious_tld': 0,
+                'domain_length': 0, 'domain_dots': 0, 'domain_has_numbers': 0,
+                'domain_has_hyphens': 0, 'username_length': 0, 'username_has_numbers': 0,
+                'username_special_chars': 0, 'suspicious_username': 0, 'email_entropy': 0
+            }
+        
+        return list(features.values())
+    
+    def _calculate_entropy(self, text):
+        """Calculate Shannon entropy of text"""
+        import math
+        if not text:
+            return 0
+        entropy = 0
+        for char in set(text):
+            p = text.count(char) / len(text)
+            entropy -= p * math.log2(p)
+        return entropy
     
     def preprocess_data(self, df):
-        """Preprocess text data"""
+        """Preprocess text data and extract email features"""
         print("\n🔄 Preprocessing text data...")
         df['processed_text'] = df['text'].apply(lambda x: self.preprocessor.preprocess(str(x)))
+        
+        print("\n📧 Extracting email features...")
+        email_features = df['sender_email'].apply(self.extract_email_features)
+        df['email_features'] = email_features
+        print(f"  ✓ Extracted {len(email_features.iloc[0])} email features per sample")
+        
         return df
     
     def train_and_evaluate(self, X_train, X_test, y_train, y_test):
@@ -185,17 +287,25 @@ def main():
     
     # Prepare data
     print("\n📊 Preparing training data...")
-    X = df['processed_text']
+    X_text = df['processed_text']
+    X_email_features = np.array(df['email_features'].tolist())
     y = df['label']
     
-    # Vectorize
+    # Vectorize text
     print("  Converting text to TF-IDF vectors...")
-    X_vectorized = trainer.vectorizer.fit_transform(X)
-    print(f"  ✓ Feature matrix shape: {X_vectorized.shape}")
+    X_text_vectorized = trainer.vectorizer.fit_transform(X_text)
+    print(f"  ✓ Text feature matrix shape: {X_text_vectorized.shape}")
+    print(f"  ✓ Email feature matrix shape: {X_email_features.shape}")
+    
+    # Combine text features with email features
+    print("  Combining text and email features...")
+    X_combined = hstack([X_text_vectorized, X_email_features])
+    print(f"  ✓ Combined feature matrix shape: {X_combined.shape}")
+    print(f"  ✓ Total features: {X_combined.shape[1]} (TF-IDF: {X_text_vectorized.shape[1]}, Email: {X_email_features.shape[1]})")
     
     # Split data
     X_train, X_test, y_train, y_test = train_test_split(
-        X_vectorized, y, test_size=0.2, random_state=42, stratify=y
+        X_combined, y, test_size=0.2, random_state=42, stratify=y
     )
     print(f"  ✓ Training set: {X_train.shape[0]} samples")
     print(f"  ✓ Test set: {X_test.shape[0]} samples")

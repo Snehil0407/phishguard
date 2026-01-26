@@ -23,10 +23,15 @@ const URLAnalysis = () => {
     setResult(null);
 
     try {
+      console.log('Analyzing URL:', url);
       const response = await analyzeURL(url);
+      console.log('Analysis response:', response);
       setResult(response);
     } catch (err) {
-      setError(err.response?.data?.detail || 'Analysis failed. Please try again.');
+      console.error('Analysis error:', err);
+      const errorMsg = err.response?.data?.detail || err.message || 'Analysis failed. Please try again.';
+      console.error('Error message:', errorMsg);
+      setError(errorMsg);
     } finally {
       setLoading(false);
     }

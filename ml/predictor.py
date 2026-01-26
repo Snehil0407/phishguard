@@ -5,6 +5,8 @@ Unified prediction interface for Email, SMS, and URL phishing detection
 import pickle
 import json
 import os
+import re
+import numpy as np
 from pathlib import Path
 
 # Add parent directory to path
@@ -42,6 +44,24 @@ class PhishGuardPredictor:
         self.url_model = None
         self.url_scaler = None
         self.url_feature_extractor = None
+        
+        # Email feature extraction - Trusted domains
+        self.trusted_domains = [
+            'google.com', 'gmail.com', 'yahoo.com', 'microsoft.com',
+            'outlook.com', 'amazon.com', 'apple.com', 'paypal.com'
+        ]
+        
+        # Free email providers
+        self.free_email_providers = [
+            'gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com',
+            'aol.com', 'mail.com', 'protonmail.com', 'yandex.com'
+        ]
+        
+        # Suspicious TLDs
+        self.suspicious_tlds = [
+            '.xyz', '.top', '.club', '.work', '.click', '.link',
+            '.stream', '.download', '.gq', '.ml', '.ga', '.cf', '.tk'
+        ]
         
         # Load models
         self._load_models()
@@ -119,12 +139,19 @@ class PhishGuardPredictor:
             red_flags = comprehensive_analysis['red_flags']
             green_flags = comprehensive_analysis['green_flags']
             
-            # STEP 2: ML Model Prediction
+            # STEP 2: ML Model Prediction with Email Features
             processed_text = self.email_preprocessor.preprocess(full_text)
             text_vector = self.email_vectorizer.transform([processed_text])
             
-            prediction = self.email_model.predict(text_vector)[0]
-            probabilities = self.email_model.predict_proba(text_vector)[0]
+            # Extract email features
+            email_features = self._extract_email_features(sender_email or "unknown@example.com")
+            
+            # Combine text features with email features
+            from scipy.sparse import hstack
+            combined_features = hstack([text_vector, email_features])
+            
+            prediction = self.email_model.predict(combined_features)[0]
+            probabilities = self.email_model.predict_proba(combined_features)[0]
             
             # Get ML confidence
             ml_confidence = float(probabilities[prediction])
@@ -168,15 +195,8 @@ class PhishGuardPredictor:
                 risk_score = int(adjusted_confidence * 100)
                 severity = "high"
             
-            # HIGH-PRIORITY: If 2+ high-priority keywords (account, security, locked, suspension, etc.)
-            elif comprehensive_analysis['content_analysis']['high_priority_count'] >= 2:
-                final_prediction = 1  # Phishing
-                adjusted_confidence = max(ml_confidence, 0.90)  # Very high confidence
-                risk_score = int(adjusted_confidence * 100)
-                severity = "high"
-            
             # STRONG SAFE PATTERN: Trusted domain + high green flags + low red flags = ALWAYS safe
-            # This overrides ML model when comprehensive analysis clearly shows it's legitimate
+            # This MUST come BEFORE high-priority keyword check to avoid false positives from legitimate emails
             # With 40 green flags, need at least 12+ for strong safety (30% of 40)
             elif (green_flags['trusted_domain'] and 
                   green_flags['score'] >= 12 and 
@@ -187,6 +207,15 @@ class PhishGuardPredictor:
                 adjusted_confidence = 0.90  # High confidence it's safe
                 risk_score = int((1 - adjusted_confidence) * 100)
                 severity = "low"
+            
+            # HIGH-PRIORITY: If 2+ high-priority keywords BUT NOT from trusted domain
+            # Legitimate emails from banks/services will mention "account", "security" - that's normal
+            elif (comprehensive_analysis['content_analysis']['high_priority_count'] >= 2 and 
+                  not green_flags['trusted_domain']):
+                final_prediction = 1  # Phishing
+                adjusted_confidence = max(ml_confidence, 0.90)  # Very high confidence
+                risk_score = int(adjusted_confidence * 100)
+                severity = "high"
             
             # FALLBACK SAFE PATTERN: Even without sender verification, strong indicators = safe
             # Good green flags + low red flags + no phishing keywords + no threats = likely safe
@@ -411,6 +440,78 @@ class PhishGuardPredictor:
                 "confidence": 0.0
             }
     
+    def _extract_email_features(self, sender_email):
+        """Extract features from sender email address for ML model"""
+        import numpy as np
+        features = []
+        
+        try:
+            email = str(sender_email).lower().strip()
+            
+            # Extract domain
+            if '@' in email:
+                domain = email.split('@')[-1]
+            else:
+                domain = 'unknown'
+            
+            # Feature 1: Is trusted domain
+            features.append(int(domain in self.trusted_domains))
+            
+            # Feature 2: Is free email provider
+            features.append(int(domain in self.free_email_providers))
+            
+            # Feature 3: Has suspicious TLD
+            features.append(int(any(domain.endswith(tld) for tld in self.suspicious_tlds)))
+            
+            # Feature 4: Domain length
+            features.append(len(domain))
+            
+            # Feature 5: Number of dots in domain
+            features.append(domain.count('.'))
+            
+            # Feature 6: Has numbers in domain
+            features.append(int(bool(re.search(r'\\d', domain))))
+            
+            # Feature 7: Domain has hyphens
+            features.append(int('-' in domain))
+            
+            # Feature 8: Username length (before @)
+            username = email.split('@')[0] if '@' in email else ''
+            features.append(len(username))
+            
+            # Feature 9: Username has numbers
+            features.append(int(bool(re.search(r'\\d', username))))
+            
+            # Feature 10: Username has special chars
+            features.append(int(bool(re.search(r'[^a-z0-9._-]', username))))
+            
+            # Feature 11: Suspicious patterns
+            suspicious_usernames = ['noreply', 'admin', 'support', 'info', 'alert', 'security']
+            features.append(int(
+                any(sus in username for sus in suspicious_usernames) and 
+                domain not in self.trusted_domains
+            ))
+            
+            # Feature 12: Email entropy
+            features.append(self._calculate_entropy(email))
+            
+        except Exception as e:
+            # Default features if extraction fails
+            features = [0] * 12
+        
+        return np.array(features).reshape(1, -1)
+    
+    def _calculate_entropy(self, text):
+        """Calculate Shannon entropy of text"""
+        import math
+        if not text:
+            return 0
+        entropy = 0
+        for char in set(text):
+            p = text.count(char) / len(text)
+            entropy -= p * math.log2(p)
+        return entropy
+    
     def predict_sms(self, sms_text):
         """
         Predict if an SMS is phishing
@@ -512,6 +613,9 @@ class PhishGuardPredictor:
             }
         
         try:
+            # Clean up defanged URLs (security practice: [.] -> .)
+            url = url.replace('[.]', '.').replace('[:]', ':')
+            
             # STEP 1: Comprehensive Analysis (Rule-based)
             analysis = self.url_feature_extractor.analyze_url_comprehensively(url)
             
@@ -530,35 +634,35 @@ class PhishGuardPredictor:
             final_prediction = ml_prediction
             adjusted_confidence = ml_confidence
             
-            # CRITICAL RED FLAGS: If 5+ red flags, ALWAYS phishing
-            if red_flag_count >= 5:
+            # CRITICAL RED FLAGS: If 7+ red flags, VERY HIGH confidence phishing  
+            if red_flag_count >= 7:
                 final_prediction = 1  # Phishing
-                adjusted_confidence = max(ml_confidence, 0.90)
+                adjusted_confidence = max(ml_confidence, 0.95)
                 severity = "high"
             
-            # STRONG RED FLAGS: If 3-4 red flags, likely phishing
-            elif red_flag_count >= 3:
+            # STRONG RED FLAGS: If 5-6 red flags, high confidence phishing
+            elif red_flag_count >= 5:
                 final_prediction = 1  # Phishing
-                adjusted_confidence = max(ml_confidence, 0.80)
-                severity = "high" if red_flag_count >= 4 else "medium"
-            
-            # TRUSTED DOMAIN: If trusted + 10+ green flags + 0-1 red flags, SAFE
-            elif analysis['features']['is_trusted'] and green_flag_count >= 10 and red_flag_count <= 1:
-                final_prediction = 0  # Safe
                 adjusted_confidence = max(ml_confidence, 0.85)
+                severity = "high"
+            
+            # TRUSTED DOMAIN: If trusted + 30+ green flags + 0-2 red flags, SAFE
+            elif analysis['features']['is_trusted'] and green_flag_count >= 30 and red_flag_count <= 2:
+                final_prediction = 0  # Safe
+                adjusted_confidence = max(ml_confidence, 0.90)
                 severity = "low"
             
-            # STRONG GREEN FLAGS: If 12+ green flags and 0-1 red flags, likely safe
-            elif green_flag_count >= 12 and red_flag_count <= 1:
+            # STRONG GREEN FLAGS: If 35+ green flags + 0-3 red flags, likely safe
+            elif green_flag_count >= 35 and red_flag_count <= 3:
                 final_prediction = 0  # Safe
-                adjusted_confidence = max(ml_confidence, 0.75)
+                adjusted_confidence = max(ml_confidence, 0.80)
                 severity = "low"
             
             # MODERATE CASES: Use ML prediction with slight adjustment
-            elif red_flag_count >= 2:
-                # 2 red flags = increase phishing likelihood
+            elif red_flag_count >= 3:
+                # 3+ red flags = increase phishing likelihood
                 if ml_prediction == 0:
-                    adjusted_confidence = ml_confidence * 0.8  # Reduce confidence in "safe"
+                    adjusted_confidence = ml_confidence * 0.7  # Reduce confidence in "safe"
                 severity = "medium"
             
             else:
@@ -585,9 +689,9 @@ class PhishGuardPredictor:
                 "risk_score": risk_score,
                 "severity": severity,
                 "explanation": {
-                    "red_flags": analysis['red_flags'][:5],  # Top 5
+                    "red_flags": analysis['red_flags_list'][:10],  # Top 10
                     "red_flag_count": red_flag_count,
-                    "green_flags": analysis['green_flags'][:5],  # Top 5
+                    "green_flags": analysis['green_flags_list'][:10],  # Top 10
                     "green_flag_count": green_flag_count,
                     "has_ip": analysis['features']['has_ip'],
                     "is_https": analysis['features']['is_https'],
@@ -604,10 +708,17 @@ class PhishGuardPredictor:
             return result
             
         except Exception as e:
+            logger.error(f"URL prediction error: {str(e)}")
             return {
                 "error": f"Prediction error: {str(e)}",
                 "is_phishing": False,
-                "confidence": 0.0
+                "confidence": 0.0,
+                "risk_score": 0,
+                "severity": "low",
+                "explanation": {
+                    "error_details": str(e)
+                },
+                "model_type": "url"
             }
 
 

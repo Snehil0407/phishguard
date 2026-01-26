@@ -12,7 +12,7 @@ class DatasetLoader:
         self.base_path = "d:/Christ University/PG/6th trimester/phishguard/ml/datasets"
     
     def load_email_data(self):
-        """Load and combine all email datasets with subject + body"""
+        """Load and combine all email datasets with subject + body + sender email"""
         print("\n📧 Loading email datasets...")
         
         email_dir = os.path.join(self.base_path, 'email', 'legitimate and phishing')
@@ -26,6 +26,7 @@ class DatasetLoader:
                 df1 = df1[['Email_Content']].copy()
                 df1['label'] = 1  # 1 for phishing
                 df1.rename(columns={'Email_Content': 'text'}, inplace=True)
+                df1['sender_email'] = 'unknown@suspicious.com'  # Placeholder for phishing
                 all_data.append(df1)
                 print(f"  ✓ PhishingEmailData.csv: {len(df1)} samples (phishing)")
         except Exception as e:
@@ -41,14 +42,15 @@ class DatasetLoader:
                     enron_df['text'] = enron_df['subject'].fillna('') + ' ' + enron_df['body'].fillna('')
                 else:
                     enron_df['text'] = enron_df['body'].fillna('')
-                enron_df = enron_df[['text', 'label']].copy()
+                enron_df['sender_email'] = 'corporate@company.com'  # Placeholder for legitimate
+                enron_df = enron_df[['text', 'sender_email', 'label']].copy()
                 all_data.append(enron_df)
                 print(f"  ✓ Enron.csv: {len(enron_df)} samples (with subject + body)")
         except Exception as e:
             print(f"  ⚠ Could not load Enron.csv: {e}")
         
         try:
-            # Load SpamAssassin (has subject and body columns)
+            # Load SpamAssassin (has subject, body, and SENDER columns)
             spam_df = pd.read_csv(os.path.join(email_dir, 'SpamAssasin.csv'),
                                  encoding='latin-1', on_bad_lines='skip', nrows=5000)
             if 'body' in spam_df.columns and 'label' in spam_df.columns:
@@ -57,21 +59,30 @@ class DatasetLoader:
                     spam_df['text'] = spam_df['subject'].fillna('') + ' ' + spam_df['body'].fillna('')
                 else:
                     spam_df['text'] = spam_df['body'].fillna('')
-                spam_df = spam_df[['text', 'label']].copy()
+                
+                # Extract actual sender email if available
+                if 'sender' in spam_df.columns:
+                    spam_df['sender_email'] = spam_df['sender'].fillna('unknown@example.com')
+                else:
+                    spam_df['sender_email'] = 'unknown@example.com'
+                
+                spam_df = spam_df[['text', 'sender_email', 'label']].copy()
                 all_data.append(spam_df)
-                print(f"  ✓ SpamAssasin.csv: {len(spam_df)} samples (with subject + body)")
+                print(f"  ✓ SpamAssasin.csv: {len(spam_df)} samples (with subject + body + sender)")
         except Exception as e:
             print(f"  ⚠ Could not load SpamAssasin.csv: {e}")
         
         # Combine all data
         if all_data:
             combined_df = pd.concat(all_data, ignore_index=True)
-            combined_df = combined_df.dropna()
+            combined_df = combined_df.dropna(subset=['text'])
+            combined_df['sender_email'] = combined_df['sender_email'].fillna('unknown@example.com')
             combined_df = combined_df.sample(frac=1, random_state=42).reset_index(drop=True)
             print(f"✓ Total emails: {len(combined_df)}")
             print(f"  - Legitimate: {sum(combined_df['label'] == 0)}")
             print(f"  - Phishing/Spam: {sum(combined_df['label'] == 1)}")
-            print("  - Training on: subject + body combined")
+            print(f"  - Training on: subject + body + sender email")
+            print(f"  - Sender emails available: {sum(combined_df['sender_email'].str.contains('@'))}")
             return combined_df
         else:
             print("⚠ No email data loaded")

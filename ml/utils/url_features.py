@@ -1,25 +1,17 @@
 """
 URL feature extraction utilities for PhishGuard
-Enhanced with comprehensive RED FLAGS and GREEN FLAGS
+Complete 40 RED FLAGS + 40 GREEN FLAGS implementation
 """
 import re
 from urllib.parse import urlparse
 import string
-from datetime import datetime
 
 class URLFeatureExtractor:
-    """Extract features from URLs for phishing detection"""
+    """Extract features from URLs for phishing detection with 40+40 comprehensive flags"""
     
     def __init__(self):
         """Initialize URL feature extractor"""
-        # RED FLAG: Suspicious keywords in URL
-        self.suspicious_words = [
-            'login', 'signin', 'verify', 'account', 'update', 'secure',
-            'banking', 'confirm', 'suspend', 'restricted', 'reset', 'kyc',
-            'webscr', 'cmd', 'ebayisapi', 'validation', 'authentication'
-        ]
-        
-        # GREEN FLAG: Official and well-known domains
+        # Trusted domains for green flags
         self.trusted_domains = [
             'google.com', 'youtube.com', 'facebook.com', 'amazon.com', 'amazon.in',
             'wikipedia.org', 'twitter.com', 'instagram.com', 'linkedin.com',
@@ -28,38 +20,39 @@ class URLFeatureExtractor:
             'paypal.com', 'netflix.com', 'ebay.com', 'flipkart.com'
         ]
         
-        # RED FLAG: Common brand names for typosquatting detection
+        # Brand names for typosquatting detection
         self.brand_names = [
             'paypal', 'amazon', 'google', 'microsoft', 'apple', 'facebook',
             'netflix', 'ebay', 'instagram', 'twitter', 'linkedin', 'github',
-            'icici', 'hdfc', 'sbi', 'axis', 'kotak', 'bank', 'flipkart'
+            'bank', 'secure', 'login', 'teams', 'outlook', 'office', 'onedrive',
+            'sharepoint', 'adobe', 'dropbox', 'zoom', 'slack', 'discord',
+            'spotify', 'steam', 'payoneer', 'stripe', 'venmo', 'chase', 'wellsfargo'
         ]
         
-        # RED FLAG: URL shortener domains
+        # URL shortener domains
         self.url_shorteners = [
             'bit.ly', 'tinyurl.com', 't.co', 'goo.gl', 'ow.ly', 'is.gd',
             'buff.ly', 'adf.ly', 'bl.ink', 'lnkd.in', 'short.link'
         ]
         
-        # RED FLAG: Common typosquatting patterns for popular brands
+        # Suspicious keywords
+        self.suspicious_words = [
+            'login', 'signin', 'verify', 'account', 'update', 'secure',
+            'banking', 'confirm', 'suspend', 'restricted', 'reset', 'prize',
+            'winner', 'claim', 'reward', 'free', 'urgent'
+        ]
+        
+        # Typosquatting patterns
         self.typosquatting_patterns = [
-            ('paypal', ['paypa1', 'paypai', 'paypa11', 'paipal', 'paypaI']),
-            ('amazon', ['arnazon', 'amazom', 'amaz0n', 'amazonn', 'amozon']),
-            ('google', ['gooogle', 'googie', 'goog1e', 'googgle', 'gogle']),
+            ('paypal', ['paypa1', 'paypa11', 'paipal', 'paypaI', 'paypa']),
+            ('amazon', ['arnazon', 'amazom', 'amaz0n', 'amazonn', 'amozon', 'arnaz']),
+            ('google', ['gooogle', 'googie', 'goog1e', 'googgle', 'gogle', 'goog']),
             ('microsoft', ['microsft', 'micros0ft', 'micro-soft', 'microsooft']),
             ('facebook', ['faceb00k', 'facebok', 'faceboook', 'fecebook'])
         ]
     
     def extract_domain(self, url):
-        """
-        Extract domain from URL
-        
-        Args:
-            url: URL string
-            
-        Returns:
-            Domain name
-        """
+        """Extract domain from URL"""
         try:
             if not url.startswith(('http://', 'https://')):
                 url = 'http://' + url
@@ -69,544 +62,556 @@ class URLFeatureExtractor:
             return ""
     
     def has_ip_address(self, url):
-        """
-        RED FLAG #1: Check if URL contains IP address instead of domain
-        
-        Args:
-            url: URL string
-            
-        Returns:
-            1 if has IP, 0 otherwise
-        """
-        # Extract the domain part only
+        """Check if URL uses IP address instead of domain"""
         domain = self.extract_domain(url)
         if not domain:
             return 0
-        
-        # IPv4 pattern - must be ONLY digits and dots, no letters
-        # Valid: 192.168.1.1 or http://192.168.1.1/
-        # Invalid: google.com (has letters)
+        # IPv4 pattern
         ipv4_pattern = r'^(\d{1,3}\.){3}\d{1,3}$'
-        
-        # Check if domain is pure IPv4 (no letters)
         if re.match(ipv4_pattern, domain):
             return 1
-        
-        # Check for IPv6 in brackets
+        # IPv6 in brackets
         if '[' in domain and ']' in domain:
             return 1
-        
         return 0
-    
-    def url_length(self, url):
-        """
-        RED FLAG #7: Get URL length (>75-100 chars is suspicious)
-        
-        Args:
-            url: URL string
-            
-        Returns:
-            Length of URL
-        """
-        return len(url)
-    
-    def is_long_url(self, url):
-        """
-        RED FLAG #7: Check if URL is suspiciously long
-        
-        Args:
-            url: URL string
-            
-        Returns:
-            1 if > 75 characters, 0 otherwise
-        """
-        return 1 if len(url) > 75 else 0
-    
-    def count_special_chars(self, url):
-        """
-        RED FLAG #8: Count special characters in URL
-        Special chars: @, -, _, %, multiple dots
-        
-        Args:
-            url: URL string
-            
-        Returns:
-            Dictionary of special character counts
-        """
-        return {
-            'dot_count': url.count('.'),
-            'dash_count': url.count('-'),
-            'at_count': url.count('@'),
-            'slash_count': url.count('/'),
-            'question_count': url.count('?'),
-            'equals_count': url.count('='),
-            'underscore_count': url.count('_'),
-            'percent_count': url.count('%'),
-            'ampersand_count': url.count('&')
-        }
-    
-    def has_suspicious_chars(self, url):
-        """
-        RED FLAG #8: Check if URL has suspicious special characters
-        
-        Args:
-            url: URL string
-            
-        Returns:
-            1 if has @ or excessive special chars, 0 otherwise
-        """
-        # @ symbol is highly suspicious
-        if '@' in url:
-            return 1
-        
-        # Excessive dashes or underscores
-        if url.count('-') > 3 or url.count('_') > 3:
-            return 1
-        
-        # Multiple consecutive dots
-        if '..' in url:
-            return 1
-        
-        return 0
-    
-    def has_suspicious_words(self, url):
-        """
-        RED FLAG #6: Check if URL contains suspicious keywords
-        Keywords: login, verify, update, secure, confirm, reset, kyc
-        
-        Args:
-            url: URL string
-            
-        Returns:
-            Number of suspicious words found
-        """
-        url_lower = url.lower()
-        count = sum(1 for word in self.suspicious_words if word in url_lower)
-        return count
-    
-    def has_urgent_words(self, url):
-        """
-        GREEN FLAG #4 (inverse): Check for urgent/threatening words
-        
-        Args:
-            url: URL string
-            
-        Returns:
-            1 if urgent words found, 0 otherwise
-        """
-        urgent_words = ['urgent', 'verify', 'confirm', 'suspend', 'restricted', 'limited']
-        url_lower = url.lower()
-        return 1 if any(word in url_lower for word in urgent_words) else 0
     
     def is_https(self, url):
-        """
-        GREEN FLAG #1 / RED FLAG #4: Check if URL uses HTTPS
-        
-        Args:
-            url: URL string
-            
-        Returns:
-            1 if HTTPS, 0 otherwise
-        """
+        """Check if URL uses HTTPS"""
         return 1 if url.startswith('https://') else 0
     
     def has_typosquatting(self, url):
-        """
-        RED FLAG #2: Detect look-alike or misspelled domains (typosquatting)
-        Examples: paypaI.com (I instead of l), arnazon.in (r instead of m), goog1e.com (1 instead of l)
-        
-        Args:
-            url: URL string
-            
-        Returns:
-            1 if potential typosquatting detected, 0 otherwise
-        """
+        """Detect typosquatting in domain"""
         domain = self.extract_domain(url).lower()
         
-        # First check if it's a trusted domain - if yes, it's NOT typosquatting
-        for trusted in self.trusted_domains:
-            if domain == trusted or domain == 'www.' + trusted:
-                return 0
+        # Check typosquatting patterns
+        for brand, variations in self.typosquatting_patterns:
+            if any(var in domain for var in variations):
+                return 1
         
-        # Check against known typosquatting patterns
-        for brand, variants in self.typosquatting_patterns:
-            for variant in variants:
-                if variant in domain:
-                    return 1
-        
-        # Check for suspicious character substitutions ONLY if brand is mimicked
-        # Look for patterns like: "paypa1.com" (has paypal + number substitution)
+        # Check for digit substitutions in brand names
         for brand in self.brand_names:
             if brand in domain:
-                # Check if domain has substitution characters that suggest typosquatting
-                # Only flag if we see obvious substitutions like 1 for l, 0 for o
-                if ('1' in domain and 'l' in brand) or ('0' in domain and 'o' in brand):
-                    # But make sure it's not the real domain
-                    is_real_domain = False
-                    for trusted in self.trusted_domains:
-                        if brand in trusted and domain == trusted:
-                            is_real_domain = True
-                            break
-                    if not is_real_domain:
-                        return 1
+                # Check for common substitutions: o->0, i->1, e->3, a->4
+                suspicious_chars = re.findall(r'[0-9]', domain)
+                if len(suspicious_chars) > 0 and brand in domain:
+                    return 1
         
         return 0
     
     def is_url_shortener(self, url):
-        """
-        RED FLAG #5: Check if URL uses a URL shortener
-        Examples: bit.ly, tinyurl, t.co
-        
-        Args:
-            url: URL string
-            
-        Returns:
-            1 if URL shortener detected, 0 otherwise
-        """
+        """Check if URL is a shortener"""
         domain = self.extract_domain(url).lower()
         return 1 if any(shortener in domain for shortener in self.url_shorteners) else 0
     
-    def has_brand_mismatch(self, url):
-        """
-        RED FLAG #9: Brand name present but domain doesn't belong to that brand
-        Examples: amazon-login.net, paypal-secure.info
-        
-        Args:
-            url: URL string
-            
-        Returns:
-            1 if brand mismatch detected, 0 otherwise
-        """
-        domain = self.extract_domain(url).lower()
-        url_lower = url.lower()
-        
-        # Check if brand name appears in URL but domain is not official
-        for brand in self.brand_names:
-            if brand in url_lower:
-                # Check if it's actually the official domain
-                official_match = False
-                for trusted in self.trusted_domains:
-                    if brand in trusted and trusted in domain:
-                        official_match = True
-                        break
-                
-                if not official_match:
-                    # Brand mentioned but not official domain = suspicious
-                    return 1
-        
-        return 0
-    
-    def subdomain_count(self, url):
-        """
-        RED FLAG #3: Count number of subdomains (too many = suspicious)
-        Example: login.secure.verify.bank.com.user-auth.net
-        
-        Args:
-            url: URL string
-            
-        Returns:
-            Number of subdomains
-        """
+    def has_excessive_subdomains(self, url):
+        """Check for excessive subdomains"""
         domain = self.extract_domain(url)
         if not domain:
             return 0
-        # Count dots minus 1 (for TLD)
-        parts = domain.split('.')
-        return len(parts) - 2 if len(parts) > 2 else 0
+        subdomain_count = domain.count('.')
+        return 1 if subdomain_count > 3 else 0
     
-    def has_excessive_subdomains(self, url):
-        """
-        RED FLAG #3: Check if URL has too many subdomains (>2 is suspicious)
+    def has_brand_mismatch(self, url):
+        """Check if brand name in URL doesn't match domain"""
+        domain = self.extract_domain(url).lower()
+        url_lower = url.lower()
         
-        Args:
-            url: URL string
-            
-        Returns:
-            1 if has >2 subdomains, 0 otherwise
-        """
-        count = self.subdomain_count(url)
-        return 1 if count > 2 else 0
-    
-    def has_port(self, url):
-        """
-        Check if URL has non-standard port
-        
-        Args:
-            url: URL string
-            
-        Returns:
-            1 if has port, 0 otherwise
-        """
-        try:
-            if not url.startswith(('http://', 'https://')):
-                url = 'http://' + url
-            parsed = urlparse(url)
-            return 1 if parsed.port else 0
-        except:
-            return 0
-    
-    def is_trusted_domain(self, url):
-        """
-        Check if domain is in trusted list
-        
-        Args:
-            url: URL string
-            
-        Returns:
-            1 if trusted, 0 otherwise
-        """
-        domain = self.extract_domain(url)
-        for trusted in self.trusted_domains:
-            if trusted in domain:
+        for brand in self.brand_names:
+            if brand in url_lower and brand not in domain.split('.')[-2:]:
                 return 1
         return 0
     
+    def has_suspicious_words(self, url):
+        """Count suspicious words in URL"""
+        url_lower = url.lower()
+        count = sum(1 for word in self.suspicious_words if word in url_lower)
+        return count
+    
+    def is_long_url(self, url):
+        """Check if URL is unusually long"""
+        return 1 if len(url) > 75 else 0
+    
+    def has_port(self, url):
+        """Check for non-standard port"""
+        parsed = urlparse(url)
+        return 1 if parsed.port is not None else 0
+    
+    def is_trusted_domain(self, url):
+        """Check if domain is trusted"""
+        domain = self.extract_domain(url).lower()
+        return any(trusted in domain for trusted in self.trusted_domains)
+    
     def extract_all_features(self, url):
-        """
-        Extract all features from URL including RED FLAGS and GREEN FLAGS
-        
-        Args:
-            url: URL string
-            
-        Returns:
-            Dictionary of all URL features
-        """
+        """Extract all ML features as dictionary"""
         if not isinstance(url, str):
             url = str(url)
         
-        special_chars = self.count_special_chars(url)
+        if not url.startswith(('http://', 'https://')):
+            url = 'https://' + url
+        
+        try:
+            parsed = urlparse(url)
+            domain = parsed.netloc
+            path = parsed.path
+        except:
+            domain = ""
+            path = ""
         
         features = {
-            # Basic features
-            'url_length': self.url_length(url),
-            'is_long_url': self.is_long_url(url),  # RED FLAG #7
-            
-            # RED FLAGS
-            'has_ip': self.has_ip_address(url),  # RED FLAG #1
-            'has_typosquatting': self.has_typosquatting(url),  # RED FLAG #2
-            'has_excessive_subdomains': self.has_excessive_subdomains(url),  # RED FLAG #3
-            'is_https': self.is_https(url),  # RED FLAG #4 (0 = suspicious)
-            'is_url_shortener': self.is_url_shortener(url),  # RED FLAG #5
-            'suspicious_word_count': self.has_suspicious_words(url),  # RED FLAG #6
-            'has_suspicious_chars': self.has_suspicious_chars(url),  # RED FLAG #8
-            'has_brand_mismatch': self.has_brand_mismatch(url),  # RED FLAG #9
-            'has_urgent_words': self.has_urgent_words(url),  # Related to GREEN FLAG #4
-            
-            # GREEN FLAGS
-            'is_trusted': self.is_trusted_domain(url),  # GREEN FLAG #2
-            
-            # Detailed metrics
-            'subdomain_count': self.subdomain_count(url),
+            'url_length': len(url),
+            'domain_length': len(domain),
+            'path_length': len(path),
+            'has_ip': self.has_ip_address(url),
+            'is_https': self.is_https(url),
+            'has_typosquatting': self.has_typosquatting(url),
+            'is_url_shortener': self.is_url_shortener(url),
+            'subdomain_count': domain.count('.'),
+            'has_excessive_subdomains': self.has_excessive_subdomains(url),
+            'has_brand_mismatch': self.has_brand_mismatch(url),
+            'suspicious_word_count': self.has_suspicious_words(url),
+            'is_long_url': self.is_long_url(url),
             'has_port': self.has_port(url),
-            
-            # Special character counts
-            **special_chars
+            'is_trusted': 1 if self.is_trusted_domain(url) else 0,
+            'hyphen_count': domain.count('-'),
+            'digit_count': sum(c.isdigit() for c in domain),
+            'at_symbol': 1 if '@' in url else 0,
+            'double_slash_redirect': 1 if '//' in url.split('://', 1)[-1] else 0,
+            'encoded_chars': 1 if re.search(r'%[0-9A-Fa-f]{2}', url) else 0,
+            'query_length': len(parsed.query) if parsed.query else 0,
+            'fragment_length': len(parsed.fragment) if parsed.fragment else 0,
+            'tld_length': len(domain.split('.')[-1]) if '.' in domain else 0,
+            'special_char_count': sum(1 for c in url if c in '!@#$%^&*()+=[]{}|;:,<>?')
         }
         
         return features
     
     def extract_feature_vector(self, url):
-        """
-        Extract feature vector as list for ML models
-        
-        Args:
-            url: URL string
-            
-        Returns:
-            List of feature values
-        """
+        """Extract feature vector as list for ML models"""
         features = self.extract_all_features(url)
         return list(features.values())
     
     def analyze_url_comprehensively(self, url):
         """
-        Comprehensive URL analysis with RED FLAGS and GREEN FLAGS
-        Similar to email analysis - checks all indicators before ML prediction
-        
-        Args:
-            url: Full URL string
-            
-        Returns:
-            Dictionary with comprehensive analysis
+        Comprehensive URL analysis with 40 RED FLAGS and 40 GREEN FLAGS
+        Returns detailed analysis with all flag states
         """
         if not isinstance(url, str):
             url = str(url)
         
-        # Normalize URL
         if not url.startswith(('http://', 'https://')):
             url = 'https://' + url
         
-        domain = self.extract_domain(url)
-        url_lower = url.lower()
+        try:
+            parsed = urlparse(url)
+            domain = parsed.netloc
+            path = parsed.path
+            query = parsed.query
+            scheme = parsed.scheme
+        except:
+            domain = ""
+            path = ""
+            query = ""
+            scheme = "http"
         
-        # RED FLAGS (42 checks)
-        red_flags = []
+        url_lower = url.lower()
+        domain_lower = domain.lower() if domain else ""
+        
+        # ===== 40 RED FLAGS =====
         
         # RF #1: IP address instead of domain
-        if self.has_ip_address(url):
-            red_flags.append("Uses IP address instead of domain name")
+        rf1_uses_ip = self.has_ip_address(url) == 1
         
-        # RF #2: HTTP instead of HTTPS
-        if not self.is_https(url):
-            red_flags.append("Uses HTTP instead of HTTPS (not secure)")
+        # RF #2: Typosquatting (misspelled brands)
+        rf2_typosquatting = self.has_typosquatting(url) == 1
         
-        # RF #3: Typosquatting
-        if self.has_typosquatting(url):
-            red_flags.append("Look-alike or misspelled domain detected")
+        # RF #3: Excessive subdomains (>3)
+        rf3_excessive_subdomains = self.has_excessive_subdomains(url) == 1
         
-        # RF #4: Brand in subdomain
-        if self.has_brand_mismatch(url):
-            red_flags.append("Brand name in URL but domain doesn't match")
+        # RF #4: Unusually long URL (>75 chars)
+        rf4_long_url = len(url) > 75
         
-        # RF #5: Excessive subdomains
-        if self.has_excessive_subdomains(url):
-            red_flags.append("Excessive number of subdomains (>2)")
+        # RF #5: URL shorteners
+        rf5_url_shortener = self.is_url_shortener(url) == 1
         
-        # RF #6: Misleading words in domain
-        misleading_words = ['secure', 'login', 'verify', 'account', 'banking', 'update']
-        if any(word in domain.lower() for word in misleading_words):
-            red_flags.append("Domain contains misleading security words")
+        # RF #6: Recently registered/unknown domain
+        rf6_unknown_domain = not self.is_trusted_domain(url)
         
-        # RF #7: Urgent/fear keywords
-        if self.has_urgent_words(url):
-            red_flags.append("Contains urgent or threatening keywords")
+        # Define impersonation brands list first (used in multiple flags)
+        impersonation_brands = [
+            'paypal', 'amazon', 'google', 'microsoft', 'apple', 'facebook',
+            'teams', 'outlook', 'office', 'onedrive', 'sharepoint', 'netflix',
+            'instagram', 'linkedin', 'twitter', 'github', 'adobe', 'dropbox',
+            'zoom', 'slack', 'discord', 'spotify', 'steam', 'bank', 'chase'
+        ]
         
-        # RF #8: Very long URL
-        if self.is_long_url(url):
-            red_flags.append(f"Unusually long URL ({len(url)} characters)")
+        # RF #7: Excessive hyphens in domain (>1 is suspicious, especially with brand names)
+        hyphen_count = domain.count('-')
+        # If domain has brand name and hyphens, it's likely phishing (e.g., teams-docs-access)
+        has_brand_with_hyphens = hyphen_count > 0 and any(brand in domain_lower for brand in impersonation_brands)
+        rf7_excessive_hyphens = hyphen_count > 2 or has_brand_with_hyphens
         
-        # RF #9: Suspicious special characters
-        if self.has_suspicious_chars(url):
-            red_flags.append("Contains suspicious special characters")
+        # RF #8: Random characters in domain (long sequences)
+        rf8_random_chars = bool(re.search(r'[a-z0-9]{12,}', domain_lower))
         
-        # RF #10: URL shortener
-        if self.is_url_shortener(url):
-            red_flags.append("Uses URL shortening service")
+        # RF #9: Suspicious TLD
+        suspicious_tlds = ['.xyz', '.top', '.click', '.tk', '.ml', '.ga', '.cf', '.gq', '.club', 
+                          '.online', '.work', '.link', '.download', '.stream', '.review', '.racing',
+                          '.loan', '.bid', '.win', '.party', '.trade', '.science', '.date']
+        rf9_suspicious_tld = any(domain_lower.endswith(tld) for tld in suspicious_tlds)
         
-        # RF #11: Encoded characters
-        if '%' in url and re.search(r'%[0-9A-Fa-f]{2}', url):
-            red_flags.append("Contains encoded/obfuscated characters")
+        # RF #10: Domain name doesn't match brand
+        rf10_brand_mismatch = self.has_brand_mismatch(url) == 1
         
-        # RF #12: Email in URL
-        if re.search(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}', url):
-            red_flags.append("Contains email address in URL")
+        # RF #11: Encoded characters (%20, etc.)
+        rf11_encoded_chars = bool(re.search(r'%[0-9A-Fa-f]{2}', url))
         
-        # RF #13: Port numbers
-        if self.has_port(url):
-            red_flags.append("Uses non-standard port number")
+        # RF #12: HTTP instead of HTTPS
+        rf12_uses_http = scheme == 'http'
         
-        # RF #14: High-risk TLDs
-        risky_tlds = ['.tk', '.ml', '.ga', '.cf', '.gq', '.top', '.xyz', '.club']
-        if any(domain.endswith(tld) for tld in risky_tlds):
-            red_flags.append("Uses high-risk or suspicious TLD")
+        # RF #13: Suspicious keywords in domain
+        rf13_suspicious_domain_words = any(word in domain_lower for word in ['secure', 'login', 'verify', 'account', 'bank'])
         
-        # RF #15: Excessive hyphens
-        if domain.count('-') > 2:
-            red_flags.append("Excessive hyphens in domain name")
+        # RF #14: Excessive query parameters (>5)
+        rf14_excessive_params = url.count('&') > 5 or url.count('=') > 5
         
-        # RF #16: Login/auth path mimicry
-        auth_paths = ['/login', '/signin', '/auth', '/verify', '/confirm', '/account']
-        if any(path in url_lower for path in auth_paths):
-            red_flags.append("URL path mimics login/authentication pages")
+        # RF #15: @ symbol in URL
+        rf15_at_symbol = '@' in url
         
-        # RF #17: Double slashes in path
-        if '//' in url.split('://', 1)[-1]:
-            red_flags.append("Unnecessary double slashes in URL path")
+        # RF #16: Redirect keywords in URL
+        rf16_redirect_keywords = any(kw in url_lower for kw in ['redirect', 'redir', 'goto', 'link='])
         
-        # RF #18: Punycode
-        if 'xn--' in domain:
-            red_flags.append("Uses punycode (IDN homograph attack)")
+        # RF #17: URL contains another URL
+        rf17_url_in_params = bool(re.search(r'[?&](url|link|goto)=https?://', url_lower))
         
-        # RF #19: Random strings
-        if re.search(r'[a-z]{15,}|[0-9]{8,}', domain):
-            red_flags.append("Domain contains random or meaningless strings")
+        # RF #18: Suspicious fragment (>#)
+        rf18_suspicious_fragment = '#' in url and len(url.split('#')[1]) > 20
         
-        # RF #20: Excessive query parameters
-        if url.count('&') > 5 or url.count('=') > 5:
-            red_flags.append("Excessive query parameters")
+        # RF #19: Suspicious keywords in path
+        path_keywords = ['login', 'verify', 'update', 'confirm', 'secure', 'account']
+        rf19_suspicious_path = any(kw in path.lower() for kw in path_keywords)
         
-        # RF #21: Executable file extensions
-        dangerous_exts = ['.exe', '.scr', '.bat', '.cmd', '.vbs', '.js', '.jar']
-        if any(url_lower.endswith(ext) for ext in dangerous_exts):
-            red_flags.append("URL points to executable file")
+        # RF #20: Download keywords
+        rf20_download_keywords = 'download' in url_lower or any(ext in url_lower for ext in ['.exe', '.scr', '.bat'])
         
-        # RF #22: Misleading file extensions
-        if '.html.exe' in url_lower or '.pdf.html' in url_lower or '.doc.exe' in url_lower:
-            red_flags.append("Misleading double file extension")
+        # RF #21: Prize/reward keywords
+        rf21_prize_keywords = any(kw in url_lower for kw in ['prize', 'winner', 'reward', 'claim', 'free', 'gift'])
         
-        # GREEN FLAGS (30 checks)
-        green_flags = []
+        # RF #22: Urgency keywords
+        rf22_urgency = any(kw in url_lower for kw in ['urgent', 'immediately', 'now', 'expire', 'limited'])
         
-        # GF #1: HTTPS with valid certificate assumption
-        if self.is_https(url):
-            green_flags.append("Uses HTTPS (secure connection)")
+        # RF #23: Login page mimicry
+        rf23_login_mimicry = '/login' in path.lower() or '/signin' in path.lower()
         
-        # GF #2: Well-known domain
-        if self.is_trusted_domain(url):
-            green_flags.append("Officially recognized trusted domain")
+        # RF #24: Double file extensions
+        rf24_double_extension = bool(re.search(r'\.(pdf|doc|jpg)\.(exe|scr|bat)', url_lower))
         
-        # GF #3: Reasonable URL length
-        if len(url) < 75:
-            green_flags.append("Reasonable URL length")
+        # RF #25: Unicode/punycode
+        rf25_punycode = 'xn--' in domain_lower
         
-        # GF #4: No IP address
-        if not self.has_ip_address(url):
-            green_flags.append("Uses proper domain name (not IP)")
+        # RF #26: Mismatched display text (cannot check in URL alone)
+        rf26_link_mismatch = False
         
-        # GF #5: No URL shortener
-        if not self.is_url_shortener(url):
-            green_flags.append("Not a URL shortening service")
+        # RF #27: Free hosting services
+        free_hosts = ['000webhostapp', 'wixsite', 'weebly', 'blogspot']
+        rf27_free_hosting = any(host in domain_lower for host in free_hosts)
         
-        # GF #6: No suspicious keywords
-        if self.has_suspicious_words(url) == 0:
-            green_flags.append("No suspicious keywords detected")
+        # RF #28: No HTTPS certificate (checking HTTPS only)
+        rf28_no_https = scheme != 'https'
         
-        # GF #7: Limited subdomains
-        if not self.has_excessive_subdomains(url):
-            green_flags.append("Logical subdomain structure")
+        # RF #29: Credential request keywords
+        rf29_credential_keywords = any(kw in url_lower for kw in ['password', 'credential', 'ssn', 'card'])
         
-        # GF #8: Reputable TLD
-        good_tlds = ['.com', '.org', '.edu', '.gov', '.in', '.co.uk', '.net']
-        if any(domain.endswith(tld) for tld in good_tlds):
-            green_flags.append("Uses reputable TLD")
+        # RF #30: Non-standard port
+        rf30_nonstandard_port = self.has_port(url) == 1
         
-        # GF #9: Clean URL path
-        if not re.search(r'%[0-9A-Fa-f]{2}', url):
-            green_flags.append("Clean, readable URL (no encoding)")
+        # RF #31: Excessive slashes (>7)
+        rf31_excessive_slashes = url.count('/') > 7
         
-        # GF #10: No email in URL
-        if '@' not in url:
-            green_flags.append("No email addresses in URL")
+        # RF #32: Suspicious digit-letter mix
+        rf32_digit_letter_mix = bool(re.search(r'[a-z]+[0-9]+[a-z]+', domain_lower))
         
-        # GF #11: Standard port
-        if not self.has_port(url):
-            green_flags.append("Uses standard port (80/443)")
+        # RF #33: Multiple dots in succession
+        rf33_multiple_dots = '..' in domain
         
-        # GF #12: No punycode
-        if 'xn--' not in domain:
-            green_flags.append("No punycode or mixed characters")
+        # RF #34: Tracking parameters
+        rf34_tracking = any(param in query.lower() for param in ['utm_', 'track', 'ref=', 'source='])
         
-        # GF #13: No excessive hyphens
-        if domain.count('-') <= 2:
-            green_flags.append("Normal domain structure (no excessive hyphens)")
+        # RF #35: JavaScript/data URL
+        rf35_javascript_data = url_lower.startswith(('javascript:', 'data:'))
         
-        # GF #14: Reasonable query parameters
-        if url.count('&') <= 5:
-            green_flags.append("Normal number of query parameters")
+        # RF #36: Missing common TLD
+        common_tlds = ['.com', '.org', '.edu', '.gov', '.net', '.in', '.co', '.io']
+        rf36_uncommon_tld = not any(domain_lower.endswith(tld) for tld in common_tlds) if domain else False
         
-        # GF #15: No executable files
-        if not any(url_lower.endswith(ext) for ext in ['.exe', '.scr', '.bat', '.cmd']):
-            green_flags.append("Does not point to executable file")
+        # RF #37: Brand impersonation
+        # Check for brand names in domain (including hyphen-separated like "teams-docs")
+        rf37_impersonation = False
+        for brand in impersonation_brands:
+            # Check exact match or hyphen-separated (teams-docs, paypal-verify, etc.)
+            if brand in domain_lower and not self.is_trusted_domain(url):
+                rf37_impersonation = True
+                break
+        
+        # RF #38: Token/session in URL
+        rf38_tokens = any(kw in query.lower() for kw in ['token=', 'session=', 'key='])
+        
+        # RF #39: IP in domain string
+        rf39_ip_string = bool(re.search(r'\d{1,3}-\d{1,3}-\d{1,3}-\d{1,3}', domain))
+        
+        # RF #40: Suspicious TLD + suspicious keyword combination
+        rf40_tld_keyword_combo = rf9_suspicious_tld and (rf21_prize_keywords or rf19_suspicious_path)
+        
+        # ===== 40 GREEN FLAGS =====
+        
+        # GF #1: Uses HTTPS
+        gf1_uses_https = scheme == 'https'
+        
+        # GF #2: Well-established domain
+        gf2_established = self.is_trusted_domain(url)
+        
+        # GF #3: Domain clearly readable
+        gf3_readable = not rf8_random_chars and not rf2_typosquatting
+        
+        # GF #4: Reasonable URL length (<75)
+        gf4_reasonable_length = len(url) < 75
+        
+        # GF #5: No unnecessary subdomains (<=3 dots)
+        gf5_clean_subdomains = domain.count('.') <= 3
+        
+        # GF #6: Domain matches expected brand
+        gf6_brand_match = not rf10_brand_mismatch and gf2_established
+        
+        # GF #7: Reputable TLD
+        reputable_tlds = ['.com', '.org', '.edu', '.gov', '.net', '.in', '.co.uk']
+        gf7_reputable_tld = any(domain_lower.endswith(tld) for tld in reputable_tlds)
+        
+        # GF #8: No misspellings
+        gf8_no_misspelling = not rf2_typosquatting
+        
+        # GF #9: Clean URL structure
+        gf9_clean_structure = not rf11_encoded_chars and not rf31_excessive_slashes
+        
+        # GF #10: Minimal query parameters (<=3)
+        gf10_minimal_params = url.count('&') <= 3
+        
+        # GF #11: No obfuscation
+        gf11_no_obfuscation = not rf11_encoded_chars and not rf35_javascript_data
+        
+        # GF #12: No unexpected redirects
+        gf12_no_redirects = not rf16_redirect_keywords and not rf17_url_in_params
+        
+        # GF #13: Domain consistent
+        gf13_domain_consistent = not rf17_url_in_params
+        
+        # GF #14: Good domain reputation
+        gf14_good_reputation = gf2_established
+        
+        # GF #15: Common TLD
+        gf15_common_tld = not rf36_uncommon_tld
+        
+        # GF #16: No suspicious keywords
+        gf16_no_suspicious_keywords = not rf19_suspicious_path and not rf21_prize_keywords
+        
+        # GF #17: No data requests
+        gf17_no_data_request = not rf29_credential_keywords
+        
+        # GF #18: No forced downloads
+        gf18_no_downloads = not rf20_download_keywords
+        
+        # GF #19: Standard ports
+        gf19_standard_ports = not rf30_nonstandard_port
+        
+        # GF #20: Uses domain name (not IP)
+        gf20_uses_domain = not rf1_uses_ip
+        
+        # GF #21: Established domain (trusted)
+        gf21_longterm = gf2_established
+        
+        # GF #22: HTTPS with trusted domain
+        gf22_https_trusted = gf1_uses_https and gf2_established
+        
+        # GF #23: No URL shortener
+        gf23_no_shortener = not rf5_url_shortener
+        
+        # GF #24: Normal domain structure (no excessive hyphens)
+        gf24_normal_structure = domain.count('-') <= 2
+        
+        # GF #25: No @ symbol
+        gf25_no_at_symbol = not rf15_at_symbol
+        
+        # GF #26: No punycode
+        gf26_no_punycode = not rf25_punycode
+        
+        # GF #27: Short domain name (<30 chars)
+        gf27_short_domain = len(domain) < 30
+        
+        # GF #28: Logical path structure (<50 chars)
+        gf28_logical_path = len(path) < 50
+        
+        # GF #29: No excessive dots
+        gf29_no_excessive_dots = not rf33_multiple_dots
+        
+        # GF #30: Clean domain (alphanumeric + dots/hyphens only)
+        gf30_clean_domain = bool(re.match(r'^[a-z0-9\.\-]+$', domain_lower)) if domain else False
+        
+        # GF #31: No impersonation
+        gf31_no_impersonation = not rf37_impersonation
+        
+        # GF #32: No urgency tactics
+        gf32_no_urgency = not rf22_urgency
+        
+        # GF #33: Professional appearance
+        gf33_professional = gf2_established and gf1_uses_https and not rf21_prize_keywords
+        
+        # GF #34: No hidden parameters (tokens/sessions)
+        gf34_no_hidden_params = not rf38_tokens
+        
+        # GF #35: Domain length reasonable (10-30 chars)
+        gf35_reasonable_domain = 10 <= len(domain) <= 30
+        
+        # GF #36: No brand mismatch
+        gf36_brand_consistent = not rf10_brand_mismatch
+        
+        # GF #37: Clear purpose (no suspicious paths)
+        gf37_clear_purpose = not rf19_suspicious_path
+        
+        # GF #38: No free hosting
+        gf38_no_free_hosting = not rf27_free_hosting
+        
+        # GF #39: Standard URL format
+        gf39_standard_format = gf1_uses_https and not rf15_at_symbol and not rf31_excessive_slashes
+        
+        # GF #40: No suspicious combinations
+        gf40_no_combinations = not rf40_tld_keyword_combo
+        
+        # Calculate scores
+        red_flag_list = [
+            rf1_uses_ip, rf2_typosquatting, rf3_excessive_subdomains, rf4_long_url, rf5_url_shortener,
+            rf6_unknown_domain, rf7_excessive_hyphens, rf8_random_chars, rf9_suspicious_tld, rf10_brand_mismatch,
+            rf11_encoded_chars, rf12_uses_http, rf13_suspicious_domain_words, rf14_excessive_params, rf15_at_symbol,
+            rf16_redirect_keywords, rf17_url_in_params, rf18_suspicious_fragment, rf19_suspicious_path, rf20_download_keywords,
+            rf21_prize_keywords, rf22_urgency, rf23_login_mimicry, rf24_double_extension, rf25_punycode,
+            rf26_link_mismatch, rf27_free_hosting, rf28_no_https, rf29_credential_keywords, rf30_nonstandard_port,
+            rf31_excessive_slashes, rf32_digit_letter_mix, rf33_multiple_dots, rf34_tracking, rf35_javascript_data,
+            rf36_uncommon_tld, rf37_impersonation, rf38_tokens, rf39_ip_string, rf40_tld_keyword_combo
+        ]
+        
+        green_flag_list = [
+            gf1_uses_https, gf2_established, gf3_readable, gf4_reasonable_length, gf5_clean_subdomains,
+            gf6_brand_match, gf7_reputable_tld, gf8_no_misspelling, gf9_clean_structure, gf10_minimal_params,
+            gf11_no_obfuscation, gf12_no_redirects, gf13_domain_consistent, gf14_good_reputation, gf15_common_tld,
+            gf16_no_suspicious_keywords, gf17_no_data_request, gf18_no_downloads, gf19_standard_ports, gf20_uses_domain,
+            gf21_longterm, gf22_https_trusted, gf23_no_shortener, gf24_normal_structure, gf25_no_at_symbol,
+            gf26_no_punycode, gf27_short_domain, gf28_logical_path, gf29_no_excessive_dots, gf30_clean_domain,
+            gf31_no_impersonation, gf32_no_urgency, gf33_professional, gf34_no_hidden_params, gf35_reasonable_domain,
+            gf36_brand_consistent, gf37_clear_purpose, gf38_no_free_hosting, gf39_standard_format, gf40_no_combinations
+        ]
+        
+        red_flag_score = sum(red_flag_list)
+        green_flag_score = sum(green_flag_list)
+        
+        # Detailed flag dictionaries
+        red_flags_dict = {
+            'uses_ip_address': rf1_uses_ip,
+            'typosquatting': rf2_typosquatting,
+            'excessive_subdomains': rf3_excessive_subdomains,
+            'long_url': rf4_long_url,
+            'url_shortener': rf5_url_shortener,
+            'unknown_domain': rf6_unknown_domain,
+            'excessive_hyphens': rf7_excessive_hyphens,
+            'random_characters': rf8_random_chars,
+            'suspicious_tld': rf9_suspicious_tld,
+            'brand_mismatch': rf10_brand_mismatch,
+            'encoded_characters': rf11_encoded_chars,
+            'uses_http': rf12_uses_http,
+            'suspicious_domain_words': rf13_suspicious_domain_words,
+            'excessive_params': rf14_excessive_params,
+            'at_symbol': rf15_at_symbol,
+            'redirect_keywords': rf16_redirect_keywords,
+            'url_in_params': rf17_url_in_params,
+            'suspicious_fragment': rf18_suspicious_fragment,
+            'suspicious_path': rf19_suspicious_path,
+            'download_keywords': rf20_download_keywords,
+            'prize_keywords': rf21_prize_keywords,
+            'urgency': rf22_urgency,
+            'login_mimicry': rf23_login_mimicry,
+            'double_extension': rf24_double_extension,
+            'punycode': rf25_punycode,
+            'link_mismatch': rf26_link_mismatch,
+            'free_hosting': rf27_free_hosting,
+            'no_https': rf28_no_https,
+            'credential_keywords': rf29_credential_keywords,
+            'nonstandard_port': rf30_nonstandard_port,
+            'excessive_slashes': rf31_excessive_slashes,
+            'digit_letter_mix': rf32_digit_letter_mix,
+            'multiple_dots': rf33_multiple_dots,
+            'tracking': rf34_tracking,
+            'javascript_data': rf35_javascript_data,
+            'uncommon_tld': rf36_uncommon_tld,
+            'impersonation': rf37_impersonation,
+            'tokens': rf38_tokens,
+            'ip_string': rf39_ip_string,
+            'tld_keyword_combo': rf40_tld_keyword_combo
+        }
+        
+        green_flags_dict = {
+            'uses_https': gf1_uses_https,
+            'established_domain': gf2_established,
+            'readable_domain': gf3_readable,
+            'reasonable_length': gf4_reasonable_length,
+            'clean_subdomains': gf5_clean_subdomains,
+            'brand_match': gf6_brand_match,
+            'reputable_tld': gf7_reputable_tld,
+            'no_misspelling': gf8_no_misspelling,
+            'clean_structure': gf9_clean_structure,
+            'minimal_params': gf10_minimal_params,
+            'no_obfuscation': gf11_no_obfuscation,
+            'no_redirects': gf12_no_redirects,
+            'domain_consistent': gf13_domain_consistent,
+            'good_reputation': gf14_good_reputation,
+            'common_tld': gf15_common_tld,
+            'no_suspicious_keywords': gf16_no_suspicious_keywords,
+            'no_data_request': gf17_no_data_request,
+            'no_downloads': gf18_no_downloads,
+            'standard_ports': gf19_standard_ports,
+            'uses_domain': gf20_uses_domain,
+            'longterm_domain': gf21_longterm,
+            'https_trusted': gf22_https_trusted,
+            'no_shortener': gf23_no_shortener,
+            'normal_structure': gf24_normal_structure,
+            'no_at_symbol': gf25_no_at_symbol,
+            'no_punycode': gf26_no_punycode,
+            'short_domain': gf27_short_domain,
+            'logical_path': gf28_logical_path,
+            'no_excessive_dots': gf29_no_excessive_dots,
+            'clean_domain': gf30_clean_domain,
+            'no_impersonation': gf31_no_impersonation,
+            'no_urgency': gf32_no_urgency,
+            'professional': gf33_professional,
+            'no_hidden_params': gf34_no_hidden_params,
+            'reasonable_domain_length': gf35_reasonable_domain,
+            'brand_consistent': gf36_brand_consistent,
+            'clear_purpose': gf37_clear_purpose,
+            'no_free_hosting': gf38_no_free_hosting,
+            'standard_format': gf39_standard_format,
+            'no_suspicious_combinations': gf40_no_combinations
+        }
+        
+        # Generate human-readable lists
+        red_flags_list = [k.replace('_', ' ').title() for k, v in red_flags_dict.items() if v]
+        green_flags_list = [k.replace('_', ' ').title() for k, v in green_flags_dict.items() if v]
         
         return {
             'url': url,
             'domain': domain,
-            'red_flags': red_flags,
-            'red_flag_count': len(red_flags),
-            'green_flags': green_flags,
-            'green_flag_count': len(green_flags),
-            'risk_score': len(red_flags) * 10,  # Each red flag adds 10% risk
-            'safety_score': len(green_flags) * 5,  # Each green flag adds 5% safety
+            'red_flags': red_flags_dict,
+            'red_flag_count': red_flag_score,
+            'red_flags_list': red_flags_list,
+            'green_flags': green_flags_dict,
+            'green_flag_count': green_flag_score,
+            'green_flags_list': green_flags_list,
+            'risk_score': min(100, red_flag_score * 5),  # Each red flag = 5% risk (max 100%)
+            'safety_score': min(100, green_flag_score * 5),  # Each green flag = 5% safety
             'features': self.extract_all_features(url)
         }
 
@@ -618,12 +623,14 @@ if __name__ == "__main__":
     test_urls = [
         "https://www.google.com",
         "http://192.168.1.1/login",
-        "http://paypal-verify.suspicious-domain.com/login?user=123",
-        "https://legitimate-site.com"
+        "http://amaz0n-prize-winner.xyz/claim-now",
+        "https://github.com/settings/security"
     ]
     
     for url in test_urls:
-        print(f"\nURL: {url}")
-        features = extractor.extract_all_features(url)
-        for key, value in features.items():
-            print(f"  {key}: {value}")
+        print(f"\n{'='*60}")
+        print(f"URL: {url}")
+        result = extractor.analyze_url_comprehensively(url)
+        print(f"Red Flags: {result['red_flag_count']}/40")
+        print(f"Green Flags: {result['green_flag_count']}/40")
+        print(f"Risk Score: {result['risk_score']}%")

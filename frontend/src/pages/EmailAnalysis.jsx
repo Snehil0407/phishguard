@@ -80,17 +80,18 @@ const EmailAnalysis = () => {
               {/* Sender Email Input */}
               <div className="mb-6">
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Sender Email Address
+                  Sender Email Address *
                 </label>
                 <input
                   type="email"
                   value={senderEmail}
                   onChange={(e) => setSenderEmail(e.target.value)}
-                  placeholder="e.g., security@paypal.com (optional but recommended)"
+                  placeholder="e.g., security@paypal.com"
                   className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                  required
                 />
                 <p className="text-sm text-gray-500 mt-1">
-                  💡 Including sender email improves detection accuracy by verifying domain authenticity
+                  💡 Sender email is a key indicator for detecting phishing attempts
                 </p>
               </div>
               

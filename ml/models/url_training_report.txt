@@ -2,7 +2,7 @@
 URL PHISHING DETECTION - TRAINING REPORT
 ======================================================================
 
-Training Date: 2026-01-24 18:48:06
+Training Date: 2026-01-25 14:31:43
 Best Model: XGBoost
 Number of Features: 23
 Features: url_length, is_long_url, has_ip, has_typosquatting, has_excessive_subdomains, is_https, is_url_shortener, suspicious_word_count, has_suspicious_chars, has_brand_mismatch, has_urgent_words, is_trusted, subdomain_count, has_port, dot_count, dash_count, at_count, slash_count, question_count, equals_count, underscore_count, percent_count, ampersand_count
