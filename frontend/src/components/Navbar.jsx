@@ -81,6 +81,14 @@ const Navbar = () => {
                       <p className="text-sm font-medium text-gray-900">{userProfile?.displayName}</p>
                       <p className="text-xs text-gray-500 truncate">{currentUser.email}</p>
                     </div>
+                    <Link
+                      to="/profile"
+                      onClick={() => setShowUserMenu(false)}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center space-x-2"
+                    >
+                      <User className="h-4 w-4" />
+                      <span>My Profile</span>
+                    </Link>
                     <button
                       onClick={handleLogout}
                       className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center space-x-2"
@@ -92,19 +100,13 @@ const Navbar = () => {
                 )}
               </div>
             ) : (
-              <div className="flex items-center space-x-2 ml-4">
+              <div className="ml-4">
                 <Link
                   to="/login"
-                  className="px-4 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 transition-all flex items-center space-x-2"
+                  className="px-6 py-2 rounded-lg text-sm font-medium bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg shadow-blue-200 flex items-center space-x-2"
                 >
                   <LogIn className="h-4 w-4" />
-                  <span>Login</span>
-                </Link>
-                <Link
-                  to="/signup"
-                  className="px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition-all"
-                >
-                  Sign Up
+                  <span>Login / Signup</span>
                 </Link>
               </div>
             )}
@@ -162,22 +164,13 @@ const Navbar = () => {
                     </button>
                   </>
                 ) : (
-                  <>
-                    <Link
-                      to="/login"
-                      onClick={() => setIsOpen(false)}
-                      className="block px-4 py-3 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100"
-                    >
-                      Login
-                    </Link>
-                    <Link
-                      to="/signup"
-                      onClick={() => setIsOpen(false)}
-                      className="block px-4 py-3 rounded-lg text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 text-center"
-                    >
-                      Sign Up
-                    </Link>
-                  </>
+                  <Link
+                    to="/login"
+                    onClick={() => setIsOpen(false)}
+                    className="block px-4 py-3 rounded-lg text-sm font-medium bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 text-center"
+                  >
+                    Login / Signup
+                  </Link>
                 )}
               </div>
             </div>

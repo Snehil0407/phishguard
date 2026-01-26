@@ -5,6 +5,7 @@ import { analyzeURL } from '../services/api';
 import ResultCard from '../components/ResultCard';
 import { useAuth } from '../context/AuthContext';
 import { saveScanResult } from '../services/scanService';
+import { generateURLPDF } from '../utils/pdfGenerator';
 
 const URLAnalysis = () => {
   const { currentUser } = useAuth();
@@ -63,6 +64,21 @@ const URLAnalysis = () => {
     setUrl('');
     setResult(null);
     setError('');
+  };
+
+  const handleDownloadPDF = () => {
+    console.log('Download URL PDF button clicked');
+    console.log('Current result:', result);
+    console.log('Current URL:', url);
+    
+    if (result) {
+      generateURLPDF({
+        url,
+        result
+      });
+    } else {
+      console.error('No result available to generate PDF');
+    }
   };
 
   const exampleURLs = [
@@ -222,7 +238,13 @@ const URLAnalysis = () => {
             transition={{ delay: 0.2 }}
           >
             {loading || result ? (
-              <ResultCard result={result} loading={loading} />
+              <ResultCard 
+                result={result} 
+                loading={loading}
+                scanType="url"
+                scanData={{ url }}
+                onDownloadPDF={result ? handleDownloadPDF : null}
+              />
             ) : (
               <div className="bg-gradient-to-br from-gray-50 to-orange-50 rounded-2xl shadow-xl p-12 border border-gray-200 flex flex-col items-center justify-center text-center min-h-[400px]">
                 <div className="bg-white p-6 rounded-full mb-6 shadow-lg">

@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
-import { AlertTriangle, CheckCircle, AlertCircle, Info } from 'lucide-react';
+import { AlertTriangle, CheckCircle, AlertCircle, Info, Download } from 'lucide-react';
 
-const ResultCard = ({ result, loading }) => {
+const ResultCard = ({ result, loading, scanType, scanData, onDownloadPDF }) => {
   // Debug logging
   if (result) {
     console.log('ResultCard received result:', result);
@@ -99,6 +99,26 @@ const ResultCard = ({ result, loading }) => {
             <div className="text-sm text-white/90">Risk Score</div>
           </div>
         </div>
+        
+        {/* Download PDF Button */}
+        {onDownloadPDF && (
+          <motion.button
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            onClick={() => {
+              console.log('ResultCard: Download button clicked');
+              console.log('ResultCard: onDownloadPDF function:', onDownloadPDF);
+              if (onDownloadPDF) {
+                onDownloadPDF();
+              }
+            }}
+            className="mt-4 w-full bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white font-semibold py-3 px-4 rounded-lg flex items-center justify-center space-x-2 transition-all duration-200 border border-white/30"
+          >
+            <Download className="h-5 w-5" />
+            <span>Download Detailed Report (PDF)</span>
+          </motion.button>
+        )}
       </div>
 
       {/* Content */}

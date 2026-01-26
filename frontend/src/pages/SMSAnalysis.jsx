@@ -5,6 +5,7 @@ import { analyzeSMS } from '../services/api';
 import ResultCard from '../components/ResultCard';
 import { useAuth } from '../context/AuthContext';
 import { saveScanResult } from '../services/scanService';
+import { generateSMSPDF } from '../utils/pdfGenerator';
 
 const SMSAnalysis = () => {
   const { currentUser } = useAuth();
@@ -58,6 +59,21 @@ const SMSAnalysis = () => {
     setMessage('');
     setResult(null);
     setError('');
+  };
+
+  const handleDownloadPDF = () => {
+    console.log('Download SMS PDF button clicked');
+    console.log('Current result:', result);
+    console.log('Current message:', message);
+    
+    if (result) {
+      generateSMSPDF({
+        message,
+        result
+      });
+    } else {
+      console.error('No result available to generate PDF');
+    }
   };
 
   const exampleMessages = [
@@ -190,7 +206,13 @@ const SMSAnalysis = () => {
             transition={{ delay: 0.2 }}
           >
             {loading || result ? (
-              <ResultCard result={result} loading={loading} />
+              <ResultCard 
+                result={result} 
+                loading={loading}
+                scanType="sms"
+                scanData={{ message }}
+                onDownloadPDF={result ? handleDownloadPDF : null}
+              />
             ) : (
               <div className="bg-gradient-to-br from-gray-50 to-purple-50 rounded-2xl shadow-xl p-12 border border-gray-200 flex flex-col items-center justify-center text-center min-h-[400px]">
                 <div className="bg-white p-6 rounded-full mb-6 shadow-lg">

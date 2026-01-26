@@ -12,6 +12,7 @@ import URLAnalysis from './pages/URLAnalysis'
 import Dashboard from './pages/Dashboard'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
+import Profile from './pages/Profile'
 
 // Scroll to top on route change
 function ScrollToTop() {
@@ -36,6 +37,14 @@ function App() {
               <Route path="/" element={<Home />} />
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />
+              <Route 
+                path="/profile" 
+                element={
+                  <PrivateRoute>
+                    <Profile />
+                  </PrivateRoute>
+                } 
+              />
               <Route 
                 path="/dashboard" 
                 element={

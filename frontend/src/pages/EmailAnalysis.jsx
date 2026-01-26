@@ -5,6 +5,7 @@ import { analyzeEmail } from '../services/api';
 import ResultCard from '../components/ResultCard';
 import { useAuth } from '../context/AuthContext';
 import { saveScanResult } from '../services/scanService';
+import { generateEmailPDF } from '../utils/pdfGenerator';
 
 const EmailAnalysis = () => {
   const { currentUser } = useAuth();
@@ -70,6 +71,24 @@ const EmailAnalysis = () => {
     setSenderEmail('');
     setResult(null);
     setError('');
+  };
+
+  const handleDownloadPDF = () => {
+    console.log('Download PDF button clicked');
+    console.log('Current result:', result);
+    console.log('Current subject:', subject);
+    console.log('Current content length:', content?.length);
+    
+    if (result) {
+      generateEmailPDF({
+        subject,
+        senderEmail,
+        content,
+        result
+      });
+    } else {
+      console.error('No result available to generate PDF');
+    }
   };
 
   return (
@@ -217,7 +236,13 @@ const EmailAnalysis = () => {
             transition={{ delay: 0.2 }}
           >
             {loading || result ? (
-              <ResultCard result={result} loading={loading} />
+              <ResultCard 
+                result={result} 
+                loading={loading}
+                scanType="email"
+                scanData={{ subject, senderEmail, content }}
+                onDownloadPDF={result ? handleDownloadPDF : null}
+              />
             ) : (
               <div className="bg-gradient-to-br from-gray-50 to-blue-50 rounded-2xl shadow-xl p-12 border border-gray-200 flex flex-col items-center justify-center text-center min-h-[400px]">
                 <div className="bg-white p-6 rounded-full mb-6 shadow-lg">
