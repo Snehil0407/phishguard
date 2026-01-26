@@ -3,8 +3,11 @@ import { motion } from 'framer-motion';
 import { MessageSquare, Send, Loader2 } from 'lucide-react';
 import { analyzeSMS } from '../services/api';
 import ResultCard from '../components/ResultCard';
+import { useAuth } from '../context/AuthContext';
+import { saveScanResult } from '../services/scanService';
 
 const SMSAnalysis = () => {
+  const { currentUser } = useAuth();
   const [message, setMessage] = useState('');
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -25,6 +28,25 @@ const SMSAnalysis = () => {
     try {
       const response = await analyzeSMS(message);
       setResult(response);
+      
+      // Save scan result to Firebase if user is logged in
+      if (currentUser) {
+        console.log('User logged in, attempting to save SMS scan...');
+        try {
+          const scanData = {
+            type: 'sms',
+            message: message,
+            content: message.substring(0, 200),
+            result: response
+          };
+          console.log('SMS scan data:', scanData);
+          const scanId = await saveScanResult(currentUser.uid, scanData);
+          console.log('SMS scan saved with ID:', scanId);
+        } catch (saveErr) {
+          console.error('Failed to save SMS scan:', saveErr);
+          console.error('Error details:', saveErr.message);
+        }
+      }
     } catch (err) {
       setError(err.response?.data?.detail || 'Analysis failed. Please try again.');
     } finally {

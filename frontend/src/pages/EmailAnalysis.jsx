@@ -3,8 +3,11 @@ import { motion } from 'framer-motion';
 import { Mail, Send, Loader2 } from 'lucide-react';
 import { analyzeEmail } from '../services/api';
 import ResultCard from '../components/ResultCard';
+import { useAuth } from '../context/AuthContext';
+import { saveScanResult } from '../services/scanService';
 
 const EmailAnalysis = () => {
+  const { currentUser } = useAuth();
   const [subject, setSubject] = useState('');
   const [content, setContent] = useState('');
   const [senderEmail, setSenderEmail] = useState('');
@@ -32,6 +35,28 @@ const EmailAnalysis = () => {
     try {
       const response = await analyzeEmail(content, subject, senderEmail);
       setResult(response);
+      
+      // Save scan result to Firebase if user is logged in
+      if (currentUser) {
+        console.log('User logged in, attempting to save scan...', currentUser.uid);
+        try {
+          const scanData = {
+            type: 'email',
+            subject: subject,
+            senderEmail: senderEmail,
+            content: content.substring(0, 200),
+            result: response
+          };
+          console.log('Scan data to save:', scanData);
+          const scanId = await saveScanResult(currentUser.uid, scanData);
+          console.log('Scan saved successfully with ID:', scanId);
+        } catch (saveErr) {
+          console.error('Failed to save scan result:', saveErr);
+          console.error('Error details:', saveErr.message, saveErr.stack);
+        }
+      } else {
+        console.log('No user logged in, skipping save');
+      }
     } catch (err) {
       setError(err.response?.data?.detail || 'Analysis failed. Please try again.');
     } finally {

@@ -818,13 +818,65 @@ class TextPreprocessor:
     # ==================== Helper Functions for 40 Red/Green Flags ====================
     
     def _check_domain_misspelling(self, email):
-        """Check for common domain misspellings (paypaI.com with capital i)"""
-        if not email:
+        """Check for common domain misspellings using typo patterns and edit distance"""
+        if not email or '@' not in email:
             return False
-        email_lower = email.lower()
-        # Common typosquatting patterns
-        typos = ['paypa1.com', 'arnazon.com', 'amaz0n.com', 'microsofit.com', 'goog1e.com', 'app1e.com']
-        return any(typo in email_lower for typo in typos)
+        
+        domain = email.split('@')[1].lower() if '@' in email else ''
+        if not domain:
+            return False
+        
+        # Common legitimate domains to check against
+        legit_domains = [
+            'gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'icloud.com',
+            'aol.com', 'mail.com', 'protonmail.com', 'live.com', 'msn.com',
+            'paypal.com', 'amazon.com', 'microsoft.com', 'google.com', 'apple.com',
+            'facebook.com', 'instagram.com', 'twitter.com', 'linkedin.com'
+        ]
+        
+        # Check for character substitution typos (common in typosquatting)
+        # 1 -> l, 0 -> o, rn -> m, vv -> w, etc.
+        suspicious_patterns = [
+            ('1', 'l'), ('l', '1'), ('0', 'o'), ('o', '0'),
+            ('i', '!'), ('m', 'rn'), ('w', 'vv'),
+            ('ii', 'i'),  # gmaiil -> gmail
+            ('oo', 'o'),  # yahooo -> yahoo
+        ]
+        
+        # Check if domain looks like a misspelling
+        for legit in legit_domains:
+            # Check for exact character substitutions
+            for char_from, char_to in suspicious_patterns:
+                if legit.replace(char_to, char_from) == domain:
+                    return True
+            
+            # Check for simple edit distance (1-2 character difference)
+            if self._similar_domain(domain, legit):
+                return True
+        
+        return False
+    
+    def _similar_domain(self, domain1, domain2):
+        """Check if two domains are suspiciously similar (Levenshtein distance <= 2)"""
+        if domain1 == domain2:
+            return False  # Exact match is not suspicious
+        
+        # Simple Levenshtein distance calculation
+        if len(domain1) > len(domain2):
+            domain1, domain2 = domain2, domain1
+        
+        distances = range(len(domain1) + 1)
+        for i2, char2 in enumerate(domain2):
+            distances_ = [i2 + 1]
+            for i1, char1 in enumerate(domain1):
+                if char1 == char2:
+                    distances_.append(distances[i1])
+                else:
+                    distances_.append(1 + min((distances[i1], distances[i1 + 1], distances_[-1])))
+            distances = distances_
+        
+        # If edit distance is 1-2, it's likely a typo/misspelling
+        return 1 <= distances[-1] <= 2
     
     def _check_free_email_provider(self, email):
         """Check if using free email for official communication"""

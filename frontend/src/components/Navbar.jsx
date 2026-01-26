@@ -1,11 +1,15 @@
-import { Link, useLocation } from 'react-router-dom';
-import { Shield, Menu, X } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Shield, Menu, X, User, LogOut, LogIn } from 'lucide-react';
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useAuth } from '../context/AuthContext';
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+  const { currentUser, userProfile, logout } = useAuth();
 
   const navItems = [
     { name: 'Home', path: '/' },
@@ -16,6 +20,16 @@ const Navbar = () => {
   ];
 
   const isActive = (path) => location.pathname === path;
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate('/');
+      setShowUserMenu(false);
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  };
 
   return (
     <nav className="bg-white/80 backdrop-blur-md shadow-lg sticky top-0 z-50 border-b border-gray-100">
@@ -33,7 +47,7 @@ const Navbar = () => {
           </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex space-x-1">
+          <div className="hidden md:flex items-center space-x-1">
             {navItems.map((item) => (
               <Link
                 key={item.path}
@@ -47,6 +61,53 @@ const Navbar = () => {
                 {item.name}
               </Link>
             ))}
+
+            {/* User Authentication */}
+            {currentUser ? (
+              <div className="relative ml-4">
+                <button
+                  onClick={() => setShowUserMenu(!showUserMenu)}
+                  className="flex items-center space-x-2 px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors"
+                >
+                  <User className="h-5 w-5 text-gray-700" />
+                  <span className="text-sm font-medium text-gray-700">
+                    {userProfile?.displayName || currentUser.email}
+                  </span>
+                </button>
+
+                {showUserMenu && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2">
+                    <div className="px-4 py-2 border-b border-gray-100">
+                      <p className="text-sm font-medium text-gray-900">{userProfile?.displayName}</p>
+                      <p className="text-xs text-gray-500 truncate">{currentUser.email}</p>
+                    </div>
+                    <button
+                      onClick={handleLogout}
+                      className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center space-x-2"
+                    >
+                      <LogOut className="h-4 w-4" />
+                      <span>Logout</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="flex items-center space-x-2 ml-4">
+                <Link
+                  to="/login"
+                  className="px-4 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 transition-all flex items-center space-x-2"
+                >
+                  <LogIn className="h-4 w-4" />
+                  <span>Login</span>
+                </Link>
+                <Link
+                  to="/signup"
+                  className="px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition-all"
+                >
+                  Sign Up
+                </Link>
+              </div>
+            )}
           </div>
 
           {/* Mobile menu button */}
@@ -83,6 +144,42 @@ const Navbar = () => {
                   {item.name}
                 </Link>
               ))}
+
+              {/* Mobile Auth */}
+              <div className="pt-2 border-t border-gray-200 space-y-2">
+                {currentUser ? (
+                  <>
+                    <div className="px-4 py-2 bg-gray-50 rounded-lg">
+                      <p className="text-sm font-medium text-gray-900">{userProfile?.displayName}</p>
+                      <p className="text-xs text-gray-500 truncate">{currentUser.email}</p>
+                    </div>
+                    <button
+                      onClick={handleLogout}
+                      className="w-full px-4 py-3 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 flex items-center space-x-2"
+                    >
+                      <LogOut className="h-4 w-4" />
+                      <span>Logout</span>
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <Link
+                      to="/login"
+                      onClick={() => setIsOpen(false)}
+                      className="block px-4 py-3 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100"
+                    >
+                      Login
+                    </Link>
+                    <Link
+                      to="/signup"
+                      onClick={() => setIsOpen(false)}
+                      className="block px-4 py-3 rounded-lg text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 text-center"
+                    >
+                      Sign Up
+                    </Link>
+                  </>
+                )}
+              </div>
             </div>
           </motion.div>
         )}

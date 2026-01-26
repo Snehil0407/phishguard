@@ -1,54 +1,97 @@
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { 
   Shield, Mail, MessageSquare, Link as LinkIcon, 
   TrendingUp, AlertTriangle, CheckCircle, BarChart3,
-  Clock, Zap, ArrowRight
+  Clock, Zap, ArrowRight, Loader2
 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { getUserStats, getRecentScans } from '../services/scanService';
 
 const Dashboard = () => {
-  // Mock data - In Phase 5, this will come from Firebase
-  const stats = {
-    totalScans: 156,
-    threatsDetected: 23,
-    safeContent: 133,
-    todayScans: 12
-  };
+  const { currentUser } = useAuth();
+  const [stats, setStats] = useState({
+    totalScans: 0,
+    threatsDetected: 0,
+    safeContent: 0,
+    todayScans: 0
+  });
+  const [recentScans, setRecentScans] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const recentScans = [
-    {
-      id: 1,
-      type: 'email',
-      content: 'Urgent: Verify your account...',
-      result: 'phishing',
-      risk: 95,
-      time: '5 mins ago'
-    },
-    {
-      id: 2,
-      type: 'sms',
-      content: 'Hey! Meeting reminder for tomorrow...',
-      result: 'safe',
-      risk: 8,
-      time: '1 hour ago'
-    },
-    {
-      id: 3,
-      type: 'url',
-      content: 'http://secure-bank-verify.com',
-      result: 'phishing',
-      risk: 99,
-      time: '2 hours ago'
-    },
-    {
-      id: 4,
-      type: 'email',
-      content: 'Newsletter: Weekly tech updates',
-      result: 'safe',
-      risk: 12,
-      time: '3 hours ago'
+  useEffect(() => {
+    const loadDashboardData = async () => {
+      if (!currentUser) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        // Load user statistics
+        const userStats = await getUserStats(currentUser.uid);
+        setStats(userStats);
+
+        // Load recent scans
+        const scans = await getRecentScans(currentUser.uid, 5);
+        console.log('Loaded scans:', scans); // Debug log
+        const formattedScans = scans.map(scan => {
+          // Handle different content types
+          let displayContent = '';
+          if (scan.type === 'email') {
+            displayContent = scan.subject || scan.content || 'Email scan';
+          } else if (scan.type === 'sms') {
+            displayContent = scan.message || scan.content || 'SMS scan';
+          } else if (scan.type === 'url') {
+            displayContent = scan.url || scan.content || 'URL scan';
+          }
+          
+          return {
+            id: scan.id,
+            type: scan.type,
+            content: displayContent,
+            result: scan.result.isPhishing ? 'phishing' : 'safe',
+            risk: Math.round((scan.result.confidence || 0) * 100),
+            time: formatTimestamp(scan.createdAt || scan.timestamp)
+          };
+        });
+        setRecentScans(formattedScans);
+      } catch (error) {
+        console.error('Error loading dashboard data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadDashboardData();
+  }, [currentUser]);
+
+  const formatTimestamp = (timestamp) => {
+    if (!timestamp) return 'Just now';
+    
+    // Handle both Firestore Timestamp and Date objects
+    let date;
+    if (timestamp.toDate) {
+      date = timestamp.toDate();
+    } else if (timestamp instanceof Date) {
+      date = timestamp;
+    } else if (typeof timestamp === 'string') {
+      date = new Date(timestamp);
+    } else {
+      return 'Just now';
     }
-  ];
+    
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins} min${diffMins > 1 ? 's' : ''} ago`;
+    if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+    return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+  };
 
   const quickActions = [
     {
@@ -100,6 +143,19 @@ const Dashboard = () => {
           </p>
         </motion.div>
 
+        {/* Loading State */}
+        {loading && (
+          <div className="flex items-center justify-center py-20">
+            <div className="text-center">
+              <Loader2 className="h-12 w-12 text-blue-600 animate-spin mx-auto mb-4" />
+              <p className="text-gray-600">Loading your dashboard...</p>
+            </div>
+          </div>
+        )}
+
+        {/* Dashboard Content */}
+        {!loading && currentUser && (
+        <>
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
           <motion.div
@@ -286,6 +342,24 @@ const Dashboard = () => {
             </div>
           </motion.div>
         </div>
+        </>
+        )}
+
+        {/* Not Logged In State */}
+        {!loading && !currentUser && (
+          <div className="text-center py-20">
+            <Shield className="h-20 w-20 text-gray-400 mx-auto mb-6" />
+            <h2 className="text-2xl font-bold text-gray-800 mb-4">Welcome to PhishGuard</h2>
+            <p className="text-gray-600 mb-8">Please log in to view your dashboard and start scanning</p>
+            <Link 
+              to="/login"
+              className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold"
+            >
+              Login to Continue
+              <ArrowRight className="ml-2 h-5 w-5" />
+            </Link>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -3,8 +3,11 @@ import { motion } from 'framer-motion';
 import { Link as LinkIcon, Send, Loader2, ExternalLink } from 'lucide-react';
 import { analyzeURL } from '../services/api';
 import ResultCard from '../components/ResultCard';
+import { useAuth } from '../context/AuthContext';
+import { saveScanResult } from '../services/scanService';
 
 const URLAnalysis = () => {
+  const { currentUser } = useAuth();
   const [url, setUrl] = useState('');
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -27,6 +30,25 @@ const URLAnalysis = () => {
       const response = await analyzeURL(url);
       console.log('Analysis response:', response);
       setResult(response);
+      
+      // Save scan result to Firebase if user is logged in
+      if (currentUser) {
+        console.log('User logged in, attempting to save URL scan...');
+        try {
+          const scanData = {
+            type: 'url',
+            url: url,
+            content: url,
+            result: response
+          };
+          console.log('URL scan data:', scanData);
+          const scanId = await saveScanResult(currentUser.uid, scanData);
+          console.log('URL scan saved with ID:', scanId);
+        } catch (saveErr) {
+          console.error('Failed to save URL scan:', saveErr);
+          console.error('Error details:', saveErr.message);
+        }
+      }
     } catch (err) {
       console.error('Analysis error:', err);
       const errorMsg = err.response?.data?.detail || err.message || 'Analysis failed. Please try again.';
