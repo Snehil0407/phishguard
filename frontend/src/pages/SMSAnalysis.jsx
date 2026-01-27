@@ -65,12 +65,18 @@ const SMSAnalysis = () => {
     console.log('Download SMS PDF button clicked');
     console.log('Current result:', result);
     console.log('Current message:', message);
+    console.log('Current user:', currentUser);
     
     if (result) {
+      const userInfo = currentUser ? {
+        userName: currentUser.displayName || currentUser.email?.split('@')[0] || 'User',
+        userEmail: currentUser.email
+      } : null;
+      
       generateSMSPDF({
         message,
         result
-      });
+      }, userInfo);
     } else {
       console.error('No result available to generate PDF');
     }

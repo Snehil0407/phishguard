@@ -78,14 +78,20 @@ const EmailAnalysis = () => {
     console.log('Current result:', result);
     console.log('Current subject:', subject);
     console.log('Current content length:', content?.length);
+    console.log('Current user:', currentUser);
     
     if (result) {
+      const userInfo = currentUser ? {
+        userName: currentUser.displayName || currentUser.email?.split('@')[0] || 'User',
+        userEmail: currentUser.email
+      } : null;
+      
       generateEmailPDF({
         subject,
         senderEmail,
         content,
         result
-      });
+      }, userInfo);
     } else {
       console.error('No result available to generate PDF');
     }

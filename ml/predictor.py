@@ -6,12 +6,16 @@ import pickle
 import json
 import os
 import re
+import logging
 import numpy as np
 from pathlib import Path
 
 # Add parent directory to path
 import sys
 sys.path.append(str(Path(__file__).parent.parent))
+
+# Configure logger
+logger = logging.getLogger(__name__)
 
 from ml.utils.text_preprocessing import TextPreprocessor
 from ml.utils.url_features import URLFeatureExtractor

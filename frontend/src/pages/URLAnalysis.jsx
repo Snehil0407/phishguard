@@ -70,12 +70,18 @@ const URLAnalysis = () => {
     console.log('Download URL PDF button clicked');
     console.log('Current result:', result);
     console.log('Current URL:', url);
+    console.log('Current user:', currentUser);
     
     if (result) {
+      const userInfo = currentUser ? {
+        userName: currentUser.displayName || currentUser.email?.split('@')[0] || 'User',
+        userEmail: currentUser.email
+      } : null;
+      
       generateURLPDF({
         url,
         result
-      });
+      }, userInfo);
     } else {
       console.error('No result available to generate PDF');
     }

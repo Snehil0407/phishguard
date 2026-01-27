@@ -1,0 +1,5 @@
+1. adding dowload and delete 
+2. improve dashboard with graphs and filters 
+3. link see all scan to my profile
+4. popup ui for recent scan 
+5. fix github
