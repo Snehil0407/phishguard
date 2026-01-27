@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { User, Mail, Phone, Edit2, Save, X, Shield, Calendar, AlertTriangle, CheckCircle, Download, Trash2 } from 'lucide-react';
+import { User, Mail, Phone, Edit2, Save, X, Shield, Calendar, AlertTriangle, CheckCircle, Download, Trash2, ChevronDown, Filter, Clock, Search } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { getUserStats, getRecentScans, deleteScanResult } from '../services/scanService';
 import { updateUserProfile } from '../services/userService';
 import { generateEmailPDF, generateSMSPDF, generateURLPDF } from '../utils/pdfGenerator';
 import ConfirmModal from '../components/ConfirmModal';
+import ScanDetailsModal from '../components/ScanDetailsModal';
 
 const Profile = () => {
   const { currentUser, userProfile, fetchUserProfile } = useAuth();
@@ -28,13 +29,82 @@ const Profile = () => {
   });
 
   const [scans, setScans] = useState([]);
+  const [filteredScans, setFilteredScans] = useState([]);
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, scanId: null });
+  const [detailsModal, setDetailsModal] = useState({ isOpen: false, scan: null });
   const [downloadingId, setDownloadingId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterType, setFilterType] = useState('all');
+  const [filterResult, setFilterResult] = useState('all');
+  const [filterTime, setFilterTime] = useState('all');
+  const [showTypeDropdown, setShowTypeDropdown] = useState(false);
+  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
+  const [showTimeDropdown, setShowTimeDropdown] = useState(false);
 
   useEffect(() => {
     loadProfileData();
   }, [currentUser]);
+
+  // Filter scans based on search and filters
+  useEffect(() => {
+    let filtered = [...scans];
+
+    // Apply search filter
+    if (searchTerm) {
+      filtered = filtered.filter(scan =>
+        scan.content.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    // Apply type filter
+    if (filterType !== 'all') {
+      filtered = filtered.filter(scan => scan.type === filterType);
+    }
+
+    // Apply result filter
+    if (filterResult !== 'all') {
+      const isPhishing = filterResult === 'phishing';
+      filtered = filtered.filter(scan => scan.isPhishing === isPhishing);
+    }
+
+    // Apply time filter
+    if (filterTime !== 'all') {
+      const now = new Date();
+      filtered = filtered.filter(scan => {
+        if (!scan.timestamp) return false;
+        
+        let scanDate;
+        if (scan.timestamp?.toDate) {
+          scanDate = scan.timestamp.toDate();
+        } else if (scan.timestamp instanceof Date) {
+          scanDate = scan.timestamp;
+        } else if (typeof scan.timestamp === 'string' || typeof scan.timestamp === 'number') {
+          scanDate = new Date(scan.timestamp);
+        } else {
+          return false;
+        }
+        
+        // Validate date
+        if (isNaN(scanDate.getTime())) return false;
+        
+        const diffHours = (now - scanDate) / (1000 * 60 * 60);
+        
+        switch(filterTime) {
+          case 'today':
+            return diffHours >= 0 && diffHours <= 24;
+          case 'week':
+            return diffHours >= 0 && diffHours <= 168; // 7 days
+          case 'month':
+            return diffHours >= 0 && diffHours <= 720; // 30 days
+          default:
+            return true;
+        }
+      });
+    }
+
+    setFilteredScans(filtered);
+  }, [searchTerm, filterType, filterResult, filterTime, scans]);
 
   const loadProfileData = async () => {
     if (!currentUser) {
@@ -48,8 +118,7 @@ const Profile = () => {
       setStats(userStats);
 
       // Load all scans
-      const allScans = await getRecentScans(currentUser.uid, 50);
-      const formattedScans = allScans.map(scan => {
+      const allScans = await getRecentScans(currentUser.uid, 50);      setFilteredScans(allScans);      const formattedScans = allScans.map(scan => {
         let displayContent = '';
         if (scan.type === 'email') {
           displayContent = scan.subject || scan.content || 'Email scan';
@@ -66,6 +135,9 @@ const Profile = () => {
           isPhishing: scan.result.isPhishing,
           confidence: Math.round((scan.result.confidence || 0) * 100),
           timestamp: scan.createdAt || scan.timestamp,
+          time: formatDate(scan.createdAt || scan.timestamp),
+          result: scan.result.isPhishing ? 'phishing' : 'safe',
+          risk: Math.round((scan.result.confidence || 0) * 100),
           // Store ALL data for PDF generation
           subject: scan.subject,
           senderEmail: scan.senderEmail,
@@ -401,19 +473,192 @@ const Profile = () => {
             <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
               <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center">
                 <Shield className="h-6 w-6 mr-2 text-blue-600" />
-                Scan History ({scans.length})
+                Scan History ({filteredScans.length})
               </h2>
 
-              {scans.length === 0 ? (
+              {/* Search and Filters */}
+              <div className="mb-6 space-y-3">
+                {/* Search Bar */}
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search scans..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                  />
+                  {searchTerm && (
+                    <button
+                      onClick={() => setSearchTerm('')}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1 hover:bg-gray-100 rounded-full transition-colors"
+                    >
+                      <X className="h-4 w-4 text-gray-400" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Filter Dropdowns */}
+                <div className="flex flex-wrap gap-3">
+                  <Filter className="h-5 w-5 text-gray-500 mt-2" />
+                  
+                  {/* Type Filter */}
+                  <div className="relative">
+                    <button
+                      onClick={() => {
+                        setShowTypeDropdown(!showTypeDropdown);
+                        setShowStatusDropdown(false);
+                        setShowTimeDropdown(false);
+                      }}
+                      className="flex items-center space-x-2 px-4 py-2 bg-white border-2 border-gray-200 rounded-lg hover:border-blue-400 transition-all shadow-sm hover:shadow-md"
+                    >
+                      <span className="text-sm font-medium text-gray-700">Type:</span>
+                      <span className="text-sm font-semibold text-blue-600">
+                        {filterType === 'all' ? 'All' : filterType.charAt(0).toUpperCase() + filterType.slice(1)}
+                      </span>
+                      <ChevronDown className="h-4 w-4 text-gray-500" />
+                    </button>
+                    {showTypeDropdown && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="absolute top-full mt-2 left-0 bg-white border border-gray-200 rounded-lg shadow-xl z-10 min-w-[150px]"
+                      >
+                        {['all', 'email', 'sms', 'url'].map(type => (
+                          <button
+                            key={type}
+                            onClick={() => {
+                              setFilterType(type);
+                              setShowTypeDropdown(false);
+                            }}
+                            className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 first:rounded-t-lg last:rounded-b-lg transition-colors ${
+                              filterType === type ? 'bg-blue-50 text-blue-600 font-semibold' : 'text-gray-700'
+                            }`}
+                          >
+                            {type === 'all' ? 'All Types' : type.charAt(0).toUpperCase() + type.slice(1)}
+                          </button>
+                        ))}
+                      </motion.div>
+                    )}
+                  </div>
+
+                  {/* Status Filter */}
+                  <div className="relative">
+                    <button
+                      onClick={() => {
+                        setShowStatusDropdown(!showStatusDropdown);
+                        setShowTypeDropdown(false);
+                        setShowTimeDropdown(false);
+                      }}
+                      className="flex items-center space-x-2 px-4 py-2 bg-white border-2 border-gray-200 rounded-lg hover:border-blue-400 transition-all shadow-sm hover:shadow-md"
+                    >
+                      <span className="text-sm font-medium text-gray-700">Status:</span>
+                      <span className={`text-sm font-semibold ${
+                        filterResult === 'safe' ? 'text-green-600' : 
+                        filterResult === 'phishing' ? 'text-red-600' : 'text-blue-600'
+                      }`}>
+                        {filterResult === 'all' ? 'All' : filterResult.charAt(0).toUpperCase() + filterResult.slice(1)}
+                      </span>
+                      <ChevronDown className="h-4 w-4 text-gray-500" />
+                    </button>
+                    {showStatusDropdown && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="absolute top-full mt-2 left-0 bg-white border border-gray-200 rounded-lg shadow-xl z-10 min-w-[150px]"
+                      >
+                        <button
+                          onClick={() => {
+                            setFilterResult('all');
+                            setShowStatusDropdown(false);
+                          }}
+                          className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 rounded-t-lg transition-colors ${
+                            filterResult === 'all' ? 'bg-blue-50 text-blue-600 font-semibold' : 'text-gray-700'
+                          }`}
+                        >
+                          All Status
+                        </button>
+                        <button
+                          onClick={() => {
+                            setFilterResult('safe');
+                            setShowStatusDropdown(false);
+                          }}
+                          className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors ${
+                            filterResult === 'safe' ? 'bg-green-50 text-green-600 font-semibold' : 'text-gray-700'
+                          }`}
+                        >
+                          ✅ Safe
+                        </button>
+                        <button
+                          onClick={() => {
+                            setFilterResult('phishing');
+                            setShowStatusDropdown(false);
+                          }}
+                          className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 rounded-b-lg transition-colors ${
+                            filterResult === 'phishing' ? 'bg-red-50 text-red-600 font-semibold' : 'text-gray-700'
+                          }`}
+                        >
+                          ⚠️ Phishing
+                        </button>
+                      </motion.div>
+                    )}
+                  </div>
+
+                  {/* Time Filter */}
+                  <div className="relative">
+                    <button
+                      onClick={() => {
+                        setShowTimeDropdown(!showTimeDropdown);
+                        setShowTypeDropdown(false);
+                        setShowStatusDropdown(false);
+                      }}
+                      className="flex items-center space-x-2 px-4 py-2 bg-white border-2 border-gray-200 rounded-lg hover:border-blue-400 transition-all shadow-sm hover:shadow-md"
+                    >
+                      <Clock className="h-4 w-4 text-gray-500" />
+                      <span className="text-sm font-medium text-gray-700">Time:</span>
+                      <span className="text-sm font-semibold text-blue-600">
+                        {filterTime === 'all' ? 'All Time' : 
+                         filterTime === 'today' ? 'Today' :
+                         filterTime === 'week' ? 'This Week' : 'This Month'}
+                      </span>
+                      <ChevronDown className="h-4 w-4 text-gray-500" />
+                    </button>
+                    {showTimeDropdown && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="absolute top-full mt-2 left-0 bg-white border border-gray-200 rounded-lg shadow-xl z-10 min-w-[160px]"
+                      >
+                        {[{value: 'all', label: 'All Time'}, {value: 'today', label: 'Today'}, {value: 'week', label: 'This Week'}, {value: 'month', label: 'This Month'}].map(time => (
+                          <button
+                            key={time.value}
+                            onClick={() => {
+                              setFilterTime(time.value);
+                              setShowTimeDropdown(false);
+                            }}
+                            className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 first:rounded-t-lg last:rounded-b-lg transition-colors ${
+                              filterTime === time.value ? 'bg-blue-50 text-blue-600 font-semibold' : 'text-gray-700'
+                            }`}
+                          >
+                            {time.label}
+                          </button>
+                        ))}
+                      </motion.div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {filteredScans.length === 0 ? (
                 <div className="text-center py-12">
-                  <Shield className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                  <p className="text-gray-600">No scans yet. Start protecting yourself!</p>
+                  <Search className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                  <p className="text-gray-600">{scans.length === 0 ? 'No scans yet. Start protecting yourself!' : 'No scans found matching your filters'}</p>
                 </div>
               ) : (
                 <div className="relative">
                   {/* Scrollable Container */}
                   <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2 scroll-smooth scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 hover:scrollbar-thumb-gray-400">
-                    {scans.map((scan) => {
+                    {filteredScans.map((scan) => {
                     const isDeleting = deletingId === scan.id;
                     const isDownloading = downloadingId === scan.id;
                     
@@ -426,7 +671,8 @@ const Profile = () => {
                           x: isDeleting ? -100 : 0,
                           scale: isDeleting ? 0.8 : 1
                         }}
-                        className="flex items-center justify-between p-4 rounded-lg border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all"
+                        onClick={() => setDetailsModal({ isOpen: true, scan })}
+                        className="flex items-center justify-between p-4 rounded-lg border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all cursor-pointer"
                       >
                         <div className="flex items-center space-x-4 flex-1 min-w-0">
                           <div className="text-2xl">{getTypeIcon(scan.type)}</div>
@@ -456,7 +702,10 @@ const Profile = () => {
                         <motion.button
                           whileHover={{ scale: 1.1 }}
                           whileTap={{ scale: 0.9 }}
-                          onClick={() => handleDownloadPDF(scan)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDownloadPDF(scan);
+                          }}
                           disabled={isDownloading}
                           className={`p-2 rounded-lg transition-colors ${
                             isDownloading 
@@ -475,7 +724,10 @@ const Profile = () => {
                         <motion.button
                           whileHover={{ scale: 1.1 }}
                           whileTap={{ scale: 0.9 }}
-                          onClick={() => setDeleteModal({ isOpen: true, scanId: scan.id })}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeleteModal({ isOpen: true, scanId: scan.id });
+                          }}
                           disabled={isDeleting}
                           className="p-2 rounded-lg hover:bg-red-100 transition-colors"
                           title="Delete Scan"
@@ -497,6 +749,13 @@ const Profile = () => {
           </motion.div>
         </div>
       </div>
+      
+      {/* Scan Details Modal */}
+      <ScanDetailsModal
+        isOpen={detailsModal.isOpen}
+        onClose={() => setDetailsModal({ isOpen: false, scan: null })}
+        scan={detailsModal.scan}
+      />
       
       {/* Delete Confirmation Modal */}
       <ConfirmModal

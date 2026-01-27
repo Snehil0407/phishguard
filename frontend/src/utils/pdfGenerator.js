@@ -15,13 +15,30 @@ const addPDFHeader = (doc, title, color, userInfo) => {
   doc.setFillColor(color[0] - 20, color[1] - 20, color[2] - 20);
   doc.rect(0, 37, 210, 3, 'F');
   
-  // Logo/Brand section
+  // Logo section with simple shield and brand name
   doc.setFillColor(255, 255, 255);
-  doc.roundedRect(12, 10, 22, 22, 3, 3, 'F');
-  doc.setFontSize(16);
+  doc.roundedRect(12, 8, 24, 24, 2, 2, 'F');
+  
+  // Simple shield shape inside white box
+  doc.setFillColor(...color);
+  // Draw a simple pentagon shield
+  doc.setDrawColor(...color);
+  doc.setLineWidth(1.2);
+  const cx = 24; // center x
+  const cy = 16; // center y
+  // Top point
+  doc.line(cx, cy - 4, cx - 3, cy - 2);
+  doc.line(cx - 3, cy - 2, cx - 3, cy + 2);
+  doc.line(cx - 3, cy + 2, cx, cy + 5);
+  doc.line(cx, cy + 5, cx + 3, cy + 2);
+  doc.line(cx + 3, cy + 2, cx + 3, cy - 2);
+  doc.line(cx + 3, cy - 2, cx, cy - 4);
+  
+  // PhishGuard text below the shield
+  doc.setFontSize(7);
   doc.setTextColor(...color);
   doc.setFont('helvetica', 'bold');
-  doc.text('PG', 23, 24, { align: 'center' });
+  doc.text('PhishGuard', 24, 27, { align: 'center' });
   
   // Title
   doc.setFontSize(24);
@@ -425,7 +442,7 @@ export const generateSMSPDF = (scanData, userInfo = null) => {
     const { message, result } = scanData;
     const doc = new jsPDF();
     
-    const themeColor = [109, 40, 217]; // Professional deep purple
+    const themeColor = [30, 64, 175]; // Professional deep blue (consistent with email)
     
     // Add professional header
     addPDFHeader(doc, 'SMS Analysis Report', themeColor, userInfo);
@@ -552,7 +569,7 @@ export const generateURLPDF = (scanData, userInfo = null) => {
     const { url, result } = scanData;
     const doc = new jsPDF();
     
-    const themeColor = [180, 83, 9]; // Professional deep orange/amber
+    const themeColor = [30, 64, 175]; // Professional deep blue (consistent with email)
     
     // Add professional header
     addPDFHeader(doc, 'URL Analysis Report', themeColor, userInfo);
