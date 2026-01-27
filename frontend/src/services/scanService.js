@@ -19,10 +19,12 @@ export const saveScanResult = async (userId, scanData) => {
         confidence: scanData.result.confidence || 0,
         riskScore: scanData.result.risk_score || 0,
         severity: scanData.result.severity || 'unknown',
-        redFlags: scanData.result.red_flags || [],
-        greenFlags: scanData.result.green_flags || []
+        redFlags: scanData.result.explanation?.red_flags || [],
+        greenFlags: scanData.result.explanation?.green_flags || [],
+        keywordsFound: scanData.result.explanation?.keywords_found || [],
+        suspiciousUrls: scanData.result.explanation?.suspicious_urls || []
       },
-      explanation: scanData.result.explanation || '',
+      explanation: scanData.result.explanation || {},
       timestamp: new Date().toISOString(),
       createdAt: serverTimestamp()
     };

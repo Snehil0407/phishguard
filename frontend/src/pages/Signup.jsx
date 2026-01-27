@@ -62,8 +62,9 @@ const Signup = () => {
       await signInWithGoogle();
       navigate('/dashboard');
     } catch (err) {
-      setError('Failed to sign in with Google.');
-      console.error(err);
+      console.error('Google Sign-In Error:', err);
+      const errorMessage = err.message || 'Failed to sign in with Google.';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
