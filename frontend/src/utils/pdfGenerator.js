@@ -7,43 +7,55 @@ console.log('PDF Generator loaded - autoTable:', typeof autoTable);
  * Add professional header with logo placeholder and user info
  */
 const addPDFHeader = (doc, title, color, userInfo) => {
-  // Header background
+  // Header background with gradient effect (using darker shade at bottom)
   doc.setFillColor(...color);
-  doc.rect(0, 0, 210, 35, 'F');
+  doc.rect(0, 0, 210, 40, 'F');
+  
+  // Bottom accent line
+  doc.setFillColor(color[0] - 20, color[1] - 20, color[2] - 20);
+  doc.rect(0, 37, 210, 3, 'F');
   
   // Logo/Brand section
   doc.setFillColor(255, 255, 255);
-  doc.roundedRect(10, 8, 20, 20, 2, 2, 'F');
-  doc.setFontSize(18);
+  doc.roundedRect(12, 10, 22, 22, 3, 3, 'F');
+  doc.setFontSize(16);
   doc.setTextColor(...color);
   doc.setFont('helvetica', 'bold');
-  doc.text('PG', 20, 21, { align: 'center' });
+  doc.text('PG', 23, 24, { align: 'center' });
   
   // Title
-  doc.setFontSize(22);
+  doc.setFontSize(24);
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
-  doc.text(title, 105, 18, { align: 'center' });
+  doc.text(title, 105, 20, { align: 'center' });
   
   // Subtitle
-  doc.setFontSize(10);
+  doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
-  doc.text('Advanced Phishing Detection & Analysis', 105, 25, { align: 'center' });
+  doc.setTextColor(245, 245, 245);
+  doc.text('Advanced AI-Powered Phishing Detection & Security Analysis', 105, 28, { align: 'center' });
   
   // User info on right
   if (userInfo?.userName) {
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'normal');
-    doc.text(`User: ${userInfo.userName}`, 200, 15, { align: 'right' });
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(255, 255, 255);
+    doc.text(userInfo.userName, 198, 16, { align: 'right' });
   }
   if (userInfo?.userEmail) {
-    doc.setFontSize(8);
-    doc.text(userInfo.userEmail, 200, 20, { align: 'right' });
+    doc.setFontSize(7);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(240, 240, 240);
+    doc.text(userInfo.userEmail, 198, 21, { align: 'right' });
   }
   
   // Timestamp
-  doc.setFontSize(8);
-  doc.text(`Generated: ${new Date().toLocaleString()}`, 200, 30, { align: 'right' });
+  doc.setFontSize(7);
+  doc.setTextColor(235, 235, 235);
+  const date = new Date();
+  const formattedDate = date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  const formattedTime = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+  doc.text(`${formattedDate} at ${formattedTime}`, 198, 32, { align: 'right' });
 };
 
 /**
@@ -56,16 +68,23 @@ const addPDFFooter = (doc, reportType) => {
     doc.setPage(i);
     
     // Footer line
-    doc.setDrawColor(200, 200, 200);
-    doc.line(15, 282, 195, 282);
+    doc.setDrawColor(220, 220, 220);
+    doc.setLineWidth(0.5);
+    doc.line(15, 280, 195, 280);
     
     // Footer text
     doc.setFontSize(8);
-    doc.setTextColor(100, 100, 100);
+    doc.setTextColor(120, 120, 120);
     doc.setFont('helvetica', 'normal');
-    doc.text('PhishGuard - Your Security Partner', 20, 287);
-    doc.text(`${reportType} Report`, 105, 287, { align: 'center' });
-    doc.text(`Page ${i} of ${pageCount}`, 190, 287, { align: 'right' });
+    doc.text('PhishGuard Security Analysis', 20, 286);
+    
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(100, 100, 100);
+    doc.text(`${reportType} Report`, 105, 286, { align: 'center' });
+    
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(120, 120, 120);
+    doc.text(`Page ${i} of ${pageCount}`, 190, 286, { align: 'right' });
   }
 };
 
@@ -200,55 +219,61 @@ const addAllIndicatorsSection = (doc, result, yPos, themeColor) => {
     // Draw table with custom styling
     autoTable(doc, {
       startY: yPos,
-      head: [['', 'Type', 'Indicator Detail']],
-      body: indicatorRows.map(row => [row.icon, row.type, row.indicator]),
-      theme: 'striped',
+      head: [['Type', 'Indicator Detail']],
+      body: indicatorRows.map(row => [row.type, row.indicator]),
+      theme: 'grid',
       headStyles: { 
         fillColor: themeColor,
         textColor: [255, 255, 255],
         fontSize: 10,
         fontStyle: 'bold',
-        halign: 'center'
+        halign: 'center',
+        valign: 'middle',
+        cellPadding: 5
       },
       margin: { left: 15, right: 15 },
       columnStyles: {
         0: { 
-          cellWidth: 12, 
+          cellWidth: 35,
           halign: 'center',
           valign: 'middle',
           fontStyle: 'bold',
-          fontSize: 11
+          fontSize: 9,
+          cellPadding: 5
         },
         1: { 
-          cellWidth: 28,
-          halign: 'center',
+          cellWidth: 140,
           valign: 'middle',
-          fontStyle: 'bold',
-          fontSize: 9
-        },
-        2: { 
-          cellWidth: 135,
-          valign: 'middle',
-          fontSize: 9
+          fontSize: 9,
+          cellPadding: 5
         }
       },
       didParseCell: function(data) {
-        // Color code the icon and type columns
-        if (data.column.index === 0 || data.column.index === 1) {
-          if (data.row.index >= 0 && data.row.index < indicatorRows.length) {
-            const rowColor = indicatorRows[data.row.index].color;
-            data.cell.styles.textColor = rowColor;
+        // Keep header text white, only color code body cells
+        if (data.section === 'head') {
+          data.cell.styles.textColor = [255, 255, 255]; // Keep header white
+        } else if (data.section === 'body') {
+          // Color code the type column in body
+          if (data.column.index === 0) {
+            if (data.row.index >= 0 && data.row.index < indicatorRows.length) {
+              const rowColor = indicatorRows[data.row.index].color;
+              data.cell.styles.textColor = rowColor;
+            }
           }
         }
       },
       styles: {
-        cellPadding: 4,
+        cellPadding: 5,
         fontSize: 9,
-        lineColor: [220, 220, 220],
-        lineWidth: 0.1
+        lineColor: [230, 230, 230],
+        lineWidth: 0.3,
+        minCellHeight: 10
       },
       alternateRowStyles: {
-        fillColor: [248, 250, 252]
+        fillColor: [250, 250, 252]
+      },
+      bodyStyles: {
+        valign: 'middle'
       }
     });
     
@@ -268,12 +293,12 @@ export const generateEmailPDF = (scanData, userInfo = null) => {
     const { subject, senderEmail, content, result } = scanData;
     const doc = new jsPDF();
     
-    const themeColor = [37, 99, 235]; // Blue
+    const themeColor = [30, 64, 175]; // Professional deep blue
     
     // Add professional header
     addPDFHeader(doc, 'Email Analysis Report', themeColor, userInfo);
     
-    let yPos = 45;
+    let yPos = 50;
     
     // Verdict Box with enhanced styling
     doc.setFontSize(16);
@@ -400,12 +425,12 @@ export const generateSMSPDF = (scanData, userInfo = null) => {
     const { message, result } = scanData;
     const doc = new jsPDF();
     
-    const themeColor = [147, 51, 234]; // Purple
+    const themeColor = [109, 40, 217]; // Professional deep purple
     
     // Add professional header
     addPDFHeader(doc, 'SMS Analysis Report', themeColor, userInfo);
     
-    let yPos = 45;
+    let yPos = 50;
     
     // Verdict Box with enhanced styling
     doc.setFontSize(16);
@@ -527,12 +552,12 @@ export const generateURLPDF = (scanData, userInfo = null) => {
     const { url, result } = scanData;
     const doc = new jsPDF();
     
-    const themeColor = [234, 88, 12]; // Orange
+    const themeColor = [180, 83, 9]; // Professional deep orange/amber
     
     // Add professional header
     addPDFHeader(doc, 'URL Analysis Report', themeColor, userInfo);
     
-    let yPos = 45;
+    let yPos = 50;
     
     // Verdict Box with enhanced styling
     doc.setFontSize(16);

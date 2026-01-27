@@ -1,3 +1,2 @@
 1. popup ui for recent scan 
-2. improve download pdf quality
 3. create a document about how each model works

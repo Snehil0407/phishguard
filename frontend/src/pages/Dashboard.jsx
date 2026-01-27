@@ -5,7 +5,7 @@ import {
   Shield, Mail, MessageSquare, Link as LinkIcon, 
   TrendingUp, AlertTriangle, CheckCircle, BarChart3,
   Clock, Zap, ArrowRight, Loader2, Download, Trash2,
-  Search, Filter, X, Calendar, PieChart, Globe
+  Search, Filter, X, Calendar, PieChart, Globe, User
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { getUserStats, getRecentScans, deleteScanResult } from '../services/scanService';
@@ -222,6 +222,13 @@ const Dashboard = () => {
       icon: LinkIcon,
       color: 'from-orange-500 to-red-500',
       link: '/url-analysis'
+    },
+    {
+      title: 'My Profile',
+      description: 'View account & history',
+      icon: User,
+      color: 'from-green-500 to-teal-500',
+      link: '/profile'
     }
   ];
 
