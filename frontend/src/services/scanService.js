@@ -1,4 +1,4 @@
-import { collection, addDoc, query, where, orderBy, limit, getDocs, updateDoc, doc, increment, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, query, where, orderBy, limit, getDocs, updateDoc, doc, increment, setDoc, getDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { db } from '../config/firebase';
 
 // Save scan result to Firestore
@@ -175,6 +175,17 @@ export const getScansByType = async (userId, type) => {
     return scans;
   } catch (error) {
     console.error('Error getting scans by type:', error);
+    throw error;
+  }
+};
+
+// Delete a scan result
+export const deleteScanResult = async (scanId) => {
+  try {
+    await deleteDoc(doc(db, 'scans', scanId));
+    console.log('Scan deleted successfully:', scanId);
+  } catch (error) {
+    console.error('Error deleting scan:', error);
     throw error;
   }
 };

@@ -4,10 +4,13 @@ import { Link } from 'react-router-dom';
 import { 
   Shield, Mail, MessageSquare, Link as LinkIcon, 
   TrendingUp, AlertTriangle, CheckCircle, BarChart3,
-  Clock, Zap, ArrowRight, Loader2
+  Clock, Zap, ArrowRight, Loader2, Download, Trash2,
+  Search, Filter, X, Calendar, PieChart, Globe
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { getUserStats, getRecentScans } from '../services/scanService';
+import { getUserStats, getRecentScans, deleteScanResult } from '../services/scanService';
+import { generateEmailPDF, generateSMSPDF, generateURLPDF } from '../utils/pdfGenerator';
+import ConfirmModal from '../components/ConfirmModal';
 
 const Dashboard = () => {
   const { currentUser } = useAuth();
@@ -18,7 +21,14 @@ const Dashboard = () => {
     todayScans: 0
   });
   const [recentScans, setRecentScans] = useState([]);
+  const [filteredScans, setFilteredScans] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [deleteModal, setDeleteModal] = useState({ isOpen: false, scanId: null });
+  const [downloadingId, setDownloadingId] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterType, setFilterType] = useState('all');
+  const [filterResult, setFilterResult] = useState('all');
 
   useEffect(() => {
     const loadDashboardData = async () => {
@@ -52,10 +62,24 @@ const Dashboard = () => {
             content: displayContent,
             result: scan.result.isPhishing ? 'phishing' : 'safe',
             risk: Math.round((scan.result.confidence || 0) * 100),
-            time: formatTimestamp(scan.createdAt || scan.timestamp)
+            time: formatTimestamp(scan.createdAt || scan.timestamp),
+            // Store ALL data for PDF generation
+            subject: scan.subject,
+            senderEmail: scan.senderEmail,
+            message: scan.message,
+            url: scan.url,
+            fullContent: scan.content,
+            fullResult: {
+              is_phishing: scan.result.isPhishing,
+              confidence: scan.result.confidence,
+              risk_score: scan.result.riskScore,
+              severity: scan.result.severity,
+              explanation: scan.explanation
+            }
           };
         });
         setRecentScans(formattedScans);
+        setFilteredScans(formattedScans);
       } catch (error) {
         console.error('Error loading dashboard data:', error);
       } finally {
@@ -65,6 +89,90 @@ const Dashboard = () => {
 
     loadDashboardData();
   }, [currentUser]);
+
+  // Filter scans based on search and filters
+  useEffect(() => {
+    let filtered = [...recentScans];
+
+    // Apply search filter
+    if (searchTerm) {
+      filtered = filtered.filter(scan =>
+        scan.content.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    // Apply type filter
+    if (filterType !== 'all') {
+      filtered = filtered.filter(scan => scan.type === filterType);
+    }
+
+    // Apply result filter
+    if (filterResult !== 'all') {
+      filtered = filtered.filter(scan => scan.result === filterResult);
+    }
+
+    setFilteredScans(filtered);
+  }, [searchTerm, filterType, filterResult, recentScans]);
+
+  const handleDownloadPDF = async (scan) => {
+    setDownloadingId(scan.id);
+    
+    const userInfo = currentUser ? {
+      userName: currentUser.displayName || currentUser.email?.split('@')[0] || 'User',
+      userEmail: currentUser.email
+    } : null;
+
+    try {
+      // Add a small delay for animation effect
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      if (scan.type === 'email') {
+        generateEmailPDF({
+          subject: scan.subject || scan.content,
+          senderEmail: scan.senderEmail || '',
+          content: scan.fullContent || scan.content || '',
+          result: scan.fullResult
+        }, userInfo);
+      } else if (scan.type === 'sms') {
+        generateSMSPDF({
+          message: scan.message || scan.fullContent || scan.content,
+          result: scan.fullResult
+        }, userInfo);
+      } else if (scan.type === 'url') {
+        generateURLPDF({
+          url: scan.url || scan.content,
+          result: scan.fullResult
+        }, userInfo);
+      }
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      alert('Failed to generate PDF. Please try again.');
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
+  const handleDeleteScan = async () => {
+    const scanId = deleteModal.scanId;
+    if (!scanId) return;
+
+    setDeletingId(scanId);
+    
+    try {
+      // Add animation delay
+      await new Promise(resolve => setTimeout(resolve, 300));
+      await deleteScanResult(scanId);
+      setRecentScans(prev => prev.filter(scan => scan.id !== scanId));
+      // Update stats
+      const userStats = await getUserStats(currentUser.uid);
+      setStats(userStats);
+    } catch (error) {
+      console.error('Error deleting scan:', error);
+      alert('Failed to delete scan. Please try again.');
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const formatTimestamp = (timestamp) => {
     if (!timestamp) return 'Just now';
@@ -162,15 +270,27 @@ const Dashboard = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100"
+            whileHover={{ scale: 1.05, y: -5 }}
+            className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100 hover:shadow-2xl transition-shadow"
           >
             <div className="flex items-center justify-between mb-4">
-              <div className="bg-blue-100 p-3 rounded-xl">
+              <motion.div 
+                className="bg-blue-100 p-3 rounded-xl"
+                whileHover={{ rotate: 360 }}
+                transition={{ duration: 0.6 }}
+              >
                 <BarChart3 className="h-6 w-6 text-blue-600" />
-              </div>
+              </motion.div>
               <TrendingUp className="h-5 w-5 text-green-500" />
             </div>
-            <div className="text-3xl font-bold text-gray-800 mb-1">{stats.totalScans}</div>
+            <motion.div 
+              className="text-3xl font-bold text-gray-800 mb-1"
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: 0.3, type: "spring" }}
+            >
+              {stats.totalScans}
+            </motion.div>
             <div className="text-sm text-gray-600">Total Scans</div>
           </motion.div>
 
@@ -178,17 +298,32 @@ const Dashboard = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100"
+            whileHover={{ scale: 1.05, y: -5 }}
+            className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100 hover:shadow-2xl transition-shadow"
           >
             <div className="flex items-center justify-between mb-4">
-              <div className="bg-red-100 p-3 rounded-xl">
+              <motion.div 
+                className="bg-red-100 p-3 rounded-xl"
+                whileHover={{ rotate: 360 }}
+                transition={{ duration: 0.6 }}
+              >
                 <AlertTriangle className="h-6 w-6 text-red-600" />
-              </div>
-              <span className="text-xs bg-red-100 text-red-600 px-2 py-1 rounded-full font-semibold">
-                {Math.round((stats.threatsDetected / stats.totalScans) * 100)}%
-              </span>
+              </motion.div>
+              <motion.span 
+                className="text-xs bg-red-100 text-red-600 px-2 py-1 rounded-full font-semibold"
+                whileHover={{ scale: 1.1 }}
+              >
+                {stats.totalScans > 0 ? Math.round((stats.threatsDetected / stats.totalScans) * 100) : 0}%
+              </motion.span>
             </div>
-            <div className="text-3xl font-bold text-gray-800 mb-1">{stats.threatsDetected}</div>
+            <motion.div 
+              className="text-3xl font-bold text-gray-800 mb-1"
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: 0.4, type: "spring" }}
+            >
+              {stats.threatsDetected}
+            </motion.div>
             <div className="text-sm text-gray-600">Threats Detected</div>
           </motion.div>
 
@@ -196,17 +331,32 @@ const Dashboard = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100"
+            whileHover={{ scale: 1.05, y: -5 }}
+            className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100 hover:shadow-2xl transition-shadow"
           >
             <div className="flex items-center justify-between mb-4">
-              <div className="bg-green-100 p-3 rounded-xl">
+              <motion.div 
+                className="bg-green-100 p-3 rounded-xl"
+                whileHover={{ rotate: 360 }}
+                transition={{ duration: 0.6 }}
+              >
                 <CheckCircle className="h-6 w-6 text-green-600" />
-              </div>
-              <span className="text-xs bg-green-100 text-green-600 px-2 py-1 rounded-full font-semibold">
-                {Math.round((stats.safeContent / stats.totalScans) * 100)}%
-              </span>
+              </motion.div>
+              <motion.span 
+                className="text-xs bg-green-100 text-green-600 px-2 py-1 rounded-full font-semibold"
+                whileHover={{ scale: 1.1 }}
+              >
+                {stats.totalScans > 0 ? Math.round((stats.safeContent / stats.totalScans) * 100) : 0}%
+              </motion.span>
             </div>
-            <div className="text-3xl font-bold text-gray-800 mb-1">{stats.safeContent}</div>
+            <motion.div 
+              className="text-3xl font-bold text-gray-800 mb-1"
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: 0.5, type: "spring" }}
+            >
+              {stats.safeContent}
+            </motion.div>
             <div className="text-sm text-gray-600">Safe Content</div>
           </motion.div>
 
@@ -214,20 +364,33 @@ const Dashboard = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
-            className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100"
+            whileHover={{ scale: 1.05, y: -5 }}
+            className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100 hover:shadow-2xl transition-shadow"
           >
             <div className="flex items-center justify-between mb-4">
-              <div className="bg-purple-100 p-3 rounded-xl">
+              <motion.div 
+                className="bg-purple-100 p-3 rounded-xl"
+                whileHover={{ rotate: 360 }}
+                transition={{ duration: 0.6 }}
+              >
                 <Clock className="h-6 w-6 text-purple-600" />
-              </div>
+              </motion.div>
               <Zap className="h-5 w-5 text-yellow-500" />
             </div>
-            <div className="text-3xl font-bold text-gray-800 mb-1">{stats.todayScans}</div>
+            <motion.div 
+              className="text-3xl font-bold text-gray-800 mb-1"
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: 0.6, type: "spring" }}
+            >
+              {stats.todayScans}
+            </motion.div>
             <div className="text-sm text-gray-600">Today's Scans</div>
           </motion.div>
         </div>
 
-        <div className="grid lg:grid-cols-3 gap-8">
+        {/* Quick Actions and Recent Scans Section */}
+        <div className="grid lg:grid-cols-3 gap-8 mt-8">
           {/* Quick Actions */}
           <div className="lg:col-span-1">
             <motion.div
@@ -278,20 +441,142 @@ const Dashboard = () => {
             transition={{ delay: 0.6 }}
             className="lg:col-span-2 bg-white rounded-2xl shadow-lg p-6 border border-gray-100"
           >
-            <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center">
-              <Clock className="h-6 w-6 mr-2 text-blue-500" />
-              Recent Scans
-            </h2>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-gray-800 flex items-center">
+                <Clock className="h-6 w-6 mr-2 text-blue-500" />
+                Recent Scans
+                <span className="ml-3 text-sm font-normal text-gray-500">({filteredScans.length})</span>
+              </h2>
+            </div>
+
+            {/* Search and Filters */}
+            <div className="mb-6 space-y-3">
+              {/* Search Bar */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search scans..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                />
+                {searchTerm && (
+                  <button
+                    onClick={() => setSearchTerm('')}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1 hover:bg-gray-100 rounded-full transition-colors"
+                  >
+                    <X className="h-4 w-4 text-gray-400" />
+                  </button>
+                )}
+              </div>
+
+              {/* Filter Buttons */}
+              <div className="flex flex-wrap gap-2">
+                <div className="flex items-center space-x-2">
+                  <Filter className="h-4 w-4 text-gray-500" />
+                  <span className="text-sm font-medium text-gray-700">Type:</span>
+                  <button
+                    onClick={() => setFilterType('all')}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                      filterType === 'all'
+                        ? 'bg-blue-600 text-white shadow-md'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    All
+                  </button>
+                  <button
+                    onClick={() => setFilterType('email')}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                      filterType === 'email'
+                        ? 'bg-blue-600 text-white shadow-md'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    Email
+                  </button>
+                  <button
+                    onClick={() => setFilterType('sms')}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                      filterType === 'sms'
+                        ? 'bg-purple-600 text-white shadow-md'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    SMS
+                  </button>
+                  <button
+                    onClick={() => setFilterType('url')}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                      filterType === 'url'
+                        ? 'bg-orange-600 text-white shadow-md'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    URL
+                  </button>
+                </div>
+
+                <div className="flex items-center space-x-2 ml-4">
+                  <span className="text-sm font-medium text-gray-700">Status:</span>
+                  <button
+                    onClick={() => setFilterResult('all')}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                      filterResult === 'all'
+                        ? 'bg-blue-600 text-white shadow-md'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    All
+                  </button>
+                  <button
+                    onClick={() => setFilterResult('safe')}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                      filterResult === 'safe'
+                        ? 'bg-green-600 text-white shadow-md'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    Safe
+                  </button>
+                  <button
+                    onClick={() => setFilterResult('phishing')}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                      filterResult === 'phishing'
+                        ? 'bg-red-600 text-white shadow-md'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    Phishing
+                  </button>
+                </div>
+              </div>
+            </div>
+
             <div className="space-y-4">
-              {recentScans.map((scan, index) => {
+              {filteredScans.length === 0 ? (
+                <div className="text-center py-12">
+                  <Search className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                  <p className="text-gray-600">No scans found matching your filters</p>
+                </div>
+              ) : (
+                filteredScans.map((scan, index) => {
                 const Icon = getTypeIcon(scan.type);
                 const isPhishing = scan.result === 'phishing';
+                const isDeleting = deletingId === scan.id;
+                const isDownloading = downloadingId === scan.id;
                 
                 return (
                   <motion.div
                     key={scan.id}
                     initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
+                    animate={{ 
+                      opacity: isDeleting ? 0 : 1, 
+                      y: 0,
+                      x: isDeleting ? -100 : 0,
+                      scale: isDeleting ? 0.8 : 1
+                    }}
                     transition={{ delay: 0.7 + index * 0.1 }}
                     className="flex items-center p-4 rounded-xl bg-gray-50 hover:bg-gray-100 transition-all border border-gray-200"
                   >
@@ -327,18 +612,47 @@ const Dashboard = () => {
                       }`}>
                         {scan.risk}%
                       </div>
+                      <motion.button
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                        onClick={() => handleDownloadPDF(scan)}
+                        disabled={isDownloading}
+                        className={`p-2 rounded-lg transition-colors ${
+                          isDownloading 
+                            ? 'bg-blue-100 cursor-wait' 
+                            : 'hover:bg-blue-100'
+                        }`}
+                        title="Download PDF Report"
+                      >
+                        <motion.div
+                          animate={isDownloading ? { rotate: 360 } : { rotate: 0 }}
+                          transition={{ duration: 1, repeat: isDownloading ? Infinity : 0, ease: "linear" }}
+                        >
+                          <Download className="h-4 w-4 text-blue-600" />
+                        </motion.div>
+                      </motion.button>
+                      <motion.button
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                        onClick={() => setDeleteModal({ isOpen: true, scanId: scan.id })}
+                        disabled={isDeleting}
+                        className="p-2 rounded-lg hover:bg-red-100 transition-colors"
+                        title="Delete Scan"
+                      >
+                        <Trash2 className="h-4 w-4 text-red-600" />
+                      </motion.button>
                     </div>
                   </motion.div>
                 );
-              })}
+              }))}
             </div>
 
             {/* View All Link */}
             <div className="mt-6 text-center">
-              <button className="text-blue-600 hover:text-blue-700 font-semibold inline-flex items-center">
+              <Link to="/profile" className="text-blue-600 hover:text-blue-700 font-semibold inline-flex items-center">
                 View All Scans
                 <ArrowRight className="ml-2 h-4 w-4" />
-              </button>
+              </Link>
             </div>
           </motion.div>
         </div>
@@ -360,7 +674,183 @@ const Dashboard = () => {
             </Link>
           </div>
         )}
+
+        {/* Visual Analytics Section - Moved to bottom */}
+        {currentUser && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.8 }}
+            className="mt-8 bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 rounded-2xl shadow-xl p-8 border border-gray-200"
+          >
+            <div className="flex items-center justify-between mb-8">
+              <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent flex items-center">
+                <PieChart className="h-8 w-8 mr-3 text-blue-600" />
+                Visual Analytics
+              </h2>
+              <div className="text-sm text-gray-600 bg-white px-4 py-2 rounded-full shadow-sm">
+                Last 30 days
+              </div>
+            </div>
+            
+            <div className="grid md:grid-cols-2 gap-8">
+              {/* Type Distribution */}
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.9 }}
+                className="bg-white rounded-xl p-6 shadow-md hover:shadow-lg transition-shadow"
+              >
+                <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center">
+                  <div className="w-2 h-8 bg-gradient-to-b from-blue-500 to-purple-500 rounded-full mr-3"></div>
+                  Scan Types Distribution
+                </h3>
+                <div className="space-y-5">
+                  {['email', 'sms', 'url'].map((type, index) => {
+                    const count = recentScans.filter(s => s.type === type).length;
+                    const percentage = stats.totalScans > 0 ? (count / stats.totalScans) * 100 : 0;
+                    const colors = {
+                      email: { bg: 'bg-blue-500', gradient: 'from-blue-400 to-blue-600', icon: Mail },
+                      sms: { bg: 'bg-purple-500', gradient: 'from-purple-400 to-purple-600', icon: MessageSquare },
+                      url: { bg: 'bg-orange-500', gradient: 'from-orange-400 to-orange-600', icon: Globe }
+                    };
+                    const Icon = colors[type].icon;
+                    
+                    return (
+                      <motion.div
+                        key={type}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 1 + index * 0.1 }}
+                        className="group"
+                      >
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center">
+                            <div className={`p-2 rounded-lg bg-gradient-to-br ${colors[type].gradient} mr-3`}>
+                              <Icon className="h-4 w-4 text-white" />
+                            </div>
+                            <span className="text-base font-semibold text-gray-800 capitalize">{type}</span>
+                          </div>
+                          <span className="text-sm font-bold text-gray-700 bg-gray-100 px-3 py-1 rounded-full">
+                            {count} <span className="text-gray-500">({percentage.toFixed(0)}%)</span>
+                          </span>
+                        </div>
+                        <div className="relative w-full bg-gray-200 rounded-full h-4 overflow-hidden shadow-inner">
+                          <motion.div
+                            initial={{ width: 0 }}
+                            animate={{ width: `${percentage}%` }}
+                            transition={{ duration: 1.2, delay: 1 + index * 0.1, ease: "easeOut" }}
+                            className={`h-full bg-gradient-to-r ${colors[type].gradient} rounded-full relative`}
+                          >
+                            <div className="absolute inset-0 bg-white opacity-20 animate-pulse"></div>
+                          </motion.div>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              </motion.div>
+
+              {/* Threat Analysis */}
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.9 }}
+                className="bg-white rounded-xl p-6 shadow-md hover:shadow-lg transition-shadow"
+              >
+                <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center">
+                  <div className="w-2 h-8 bg-gradient-to-b from-red-500 to-green-500 rounded-full mr-3"></div>
+                  Security Analysis
+                </h3>
+                <div className="space-y-5">
+                  {[
+                    { label: 'Phishing Detected', count: stats.threatsDetected, color: 'from-red-400 to-red-600', icon: AlertTriangle },
+                    { label: 'Safe Content', count: stats.safeContent, color: 'from-green-400 to-green-600', icon: Shield }
+                  ].map((item, index) => {
+                    const percentage = stats.totalScans > 0 ? (item.count / stats.totalScans) * 100 : 0;
+                    const Icon = item.icon;
+                    
+                    return (
+                      <motion.div
+                        key={item.label}
+                        initial={{ opacity: 0, x: 20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 1 + index * 0.15 }}
+                      >
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center">
+                            <div className={`p-2 rounded-lg bg-gradient-to-br ${item.color} mr-3`}>
+                              <Icon className="h-4 w-4 text-white" />
+                            </div>
+                            <span className="text-base font-semibold text-gray-800">{item.label}</span>
+                          </div>
+                          <span className="text-sm font-bold text-gray-700 bg-gray-100 px-3 py-1 rounded-full">
+                            {item.count} <span className="text-gray-500">({percentage.toFixed(0)}%)</span>
+                          </span>
+                        </div>
+                        <div className="relative w-full bg-gray-200 rounded-full h-4 overflow-hidden shadow-inner">
+                          <motion.div
+                            initial={{ width: 0 }}
+                            animate={{ width: `${percentage}%` }}
+                            transition={{ duration: 1.2, delay: 1 + index * 0.15, ease: "easeOut" }}
+                            className={`h-full bg-gradient-to-r ${item.color} rounded-full relative`}
+                          >
+                            <div className="absolute inset-0 bg-white opacity-20 animate-pulse"></div>
+                          </motion.div>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+                
+                {/* Risk Distribution Cards */}
+                <div className="mt-8">
+                  <h4 className="text-base font-bold text-gray-700 mb-4 flex items-center">
+                    <TrendingUp className="h-5 w-5 mr-2 text-gray-600" />
+                    Risk Levels
+                  </h4>
+                  <div className="grid grid-cols-3 gap-3">
+                    {[
+                      { label: 'Low', range: [0, 40], gradient: 'from-green-400 to-green-600', bg: 'bg-green-50', border: 'border-green-200' },
+                      { label: 'Medium', range: [41, 70], gradient: 'from-orange-400 to-orange-600', bg: 'bg-orange-50', border: 'border-orange-200' },
+                      { label: 'High', range: [71, 100], gradient: 'from-red-400 to-red-600', bg: 'bg-red-50', border: 'border-red-200' }
+                    ].map((risk, index) => {
+                      const count = recentScans.filter(s => s.risk >= risk.range[0] && s.risk <= risk.range[1]).length;
+                      return (
+                        <motion.div
+                          key={risk.label}
+                          initial={{ opacity: 0, scale: 0.8 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          transition={{ delay: 1.2 + index * 0.1 }}
+                          whileHover={{ scale: 1.05, y: -2 }}
+                          className={`${risk.bg} border-2 ${risk.border} rounded-xl p-4 text-center hover:shadow-lg transition-all cursor-pointer`}
+                        >
+                          <div className={`text-3xl font-black bg-gradient-to-r ${risk.gradient} bg-clip-text text-transparent mb-1`}>
+                            {count}
+                          </div>
+                          <div className="text-xs font-semibold text-gray-600">{risk.label} Risk</div>
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          </motion.div>
+        )}
       </div>
+      
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={deleteModal.isOpen}
+        onClose={() => setDeleteModal({ isOpen: false, scanId: null })}
+        onConfirm={handleDeleteScan}
+        title="Delete Scan?"
+        message="Are you sure you want to delete this scan? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        type="danger"
+      />
     </div>
   );
 };

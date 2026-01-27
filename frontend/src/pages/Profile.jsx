@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { User, Mail, Phone, Edit2, Save, X, Shield, Calendar, AlertTriangle, CheckCircle } from 'lucide-react';
+import { User, Mail, Phone, Edit2, Save, X, Shield, Calendar, AlertTriangle, CheckCircle, Download, Trash2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { getUserStats, getRecentScans } from '../services/scanService';
+import { getUserStats, getRecentScans, deleteScanResult } from '../services/scanService';
 import { updateUserProfile } from '../services/userService';
+import { generateEmailPDF, generateSMSPDF, generateURLPDF } from '../utils/pdfGenerator';
+import ConfirmModal from '../components/ConfirmModal';
 
 const Profile = () => {
   const { currentUser, userProfile, fetchUserProfile } = useAuth();
@@ -26,6 +28,9 @@ const Profile = () => {
   });
 
   const [scans, setScans] = useState([]);
+  const [deleteModal, setDeleteModal] = useState({ isOpen: false, scanId: null });
+  const [downloadingId, setDownloadingId] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
 
   useEffect(() => {
     loadProfileData();
@@ -60,7 +65,20 @@ const Profile = () => {
           content: displayContent,
           isPhishing: scan.result.isPhishing,
           confidence: Math.round((scan.result.confidence || 0) * 100),
-          timestamp: scan.createdAt || scan.timestamp
+          timestamp: scan.createdAt || scan.timestamp,
+          // Store ALL data for PDF generation
+          subject: scan.subject,
+          senderEmail: scan.senderEmail,
+          message: scan.message,
+          url: scan.url,
+          fullContent: scan.content,
+          fullResult: {
+            is_phishing: scan.result.isPhishing,
+            confidence: scan.result.confidence,
+            risk_score: scan.result.riskScore,
+            severity: scan.result.severity,
+            explanation: scan.explanation
+          }
         };
       });
       setScans(formattedScans);
@@ -121,6 +139,63 @@ const Profile = () => {
       setError('Failed to update profile');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDownloadPDF = async (scan) => {
+    setDownloadingId(scan.id);
+    
+    const userInfo = currentUser ? {
+      userName: currentUser.displayName || currentUser.email?.split('@')[0] || 'User',
+      userEmail: currentUser.email
+    } : null;
+
+    try {
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      if (scan.type === 'email') {
+        generateEmailPDF({
+          subject: scan.subject || scan.content,
+          senderEmail: scan.senderEmail || '',
+          content: scan.fullContent || scan.content || '',
+          result: scan.fullResult
+        }, userInfo);
+      } else if (scan.type === 'sms') {
+        generateSMSPDF({
+          message: scan.message || scan.fullContent || scan.content,
+          result: scan.fullResult
+        }, userInfo);
+      } else if (scan.type === 'url') {
+        generateURLPDF({
+          url: scan.url || scan.content,
+          result: scan.fullResult
+        }, userInfo);
+      }
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      alert('Failed to generate PDF. Please try again.');
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
+  const handleDeleteScan = async () => {
+    const scanId = deleteModal.scanId;
+    if (!scanId) return;
+
+    setDeletingId(scanId);
+    
+    try {
+      await new Promise(resolve => setTimeout(resolve, 300));
+      await deleteScanResult(scanId);
+      setScans(prev => prev.filter(scan => scan.id !== scanId));
+      const userStats = await getUserStats(currentUser.uid);
+      setStats(userStats);
+    } catch (error) {
+      console.error('Error deleting scan:', error);
+      alert('Failed to delete scan. Please try again.');
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -335,14 +410,26 @@ const Profile = () => {
                   <p className="text-gray-600">No scans yet. Start protecting yourself!</p>
                 </div>
               ) : (
-                <div className="space-y-3 max-h-[600px] overflow-y-auto">
-                  {scans.map((scan) => (
-                    <div
-                      key={scan.id}
-                      className="flex items-center justify-between p-4 rounded-lg border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all"
-                    >
-                      <div className="flex items-center space-x-4 flex-1 min-w-0">
-                        <div className="text-2xl">{getTypeIcon(scan.type)}</div>
+                <div className="relative">
+                  {/* Scrollable Container */}
+                  <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2 scroll-smooth scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 hover:scrollbar-thumb-gray-400">
+                    {scans.map((scan) => {
+                    const isDeleting = deletingId === scan.id;
+                    const isDownloading = downloadingId === scan.id;
+                    
+                    return (
+                      <motion.div
+                        key={scan.id}
+                        initial={{ opacity: 1 }}
+                        animate={{ 
+                          opacity: isDeleting ? 0 : 1,
+                          x: isDeleting ? -100 : 0,
+                          scale: isDeleting ? 0.8 : 1
+                        }}
+                        className="flex items-center justify-between p-4 rounded-lg border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all"
+                      >
+                        <div className="flex items-center space-x-4 flex-1 min-w-0">
+                          <div className="text-2xl">{getTypeIcon(scan.type)}</div>
                         <div className="flex-1 min-w-0">
                           <p className="font-medium text-gray-800 truncate">{scan.content}</p>
                           <p className="text-xs text-gray-500">{formatDate(scan.timestamp)}</p>
@@ -366,15 +453,62 @@ const Profile = () => {
                             </div>
                           </div>
                         )}
+                        <motion.button
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.9 }}
+                          onClick={() => handleDownloadPDF(scan)}
+                          disabled={isDownloading}
+                          className={`p-2 rounded-lg transition-colors ${
+                            isDownloading 
+                              ? 'bg-blue-100 cursor-wait' 
+                              : 'hover:bg-blue-100'
+                          }`}
+                          title="Download PDF Report"
+                        >
+                          <motion.div
+                            animate={isDownloading ? { rotate: 360 } : { rotate: 0 }}
+                            transition={{ duration: 1, repeat: isDownloading ? Infinity : 0, ease: "linear" }}
+                          >
+                            <Download className="h-4 w-4 text-blue-600" />
+                          </motion.div>
+                        </motion.button>
+                        <motion.button
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.9 }}
+                          onClick={() => setDeleteModal({ isOpen: true, scanId: scan.id })}
+                          disabled={isDeleting}
+                          className="p-2 rounded-lg hover:bg-red-100 transition-colors"
+                          title="Delete Scan"
+                        >
+                          <Trash2 className="h-4 w-4 text-red-600" />
+                        </motion.button>
                       </div>
-                    </div>
-                  ))}
+                    </motion.div>
+                    );
+                  })}
                 </div>
+                {/* Scroll Indicator */}
+                {scans.length > 5 && (
+                  <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-white to-transparent pointer-events-none"></div>
+                )}
+              </div>
               )}
             </div>
           </motion.div>
         </div>
       </div>
+      
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={deleteModal.isOpen}
+        onClose={() => setDeleteModal({ isOpen: false, scanId: null })}
+        onConfirm={handleDeleteScan}
+        title="Delete Scan?"
+        message="Are you sure you want to delete this scan? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        type="danger"
+      />
     </div>
   );
 };

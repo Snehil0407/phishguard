@@ -146,13 +146,13 @@ const ResultCard = ({ result, loading, scanType, scanData, onDownloadPDF }) => {
           <div className="space-y-4">
             <h4 className="text-lg font-bold text-gray-800 mb-3">Analysis Details</h4>
             
-            {/* Red Flags for URL Analysis - Show ONLY if phishing detected */}
+            {/* Red Flags for URL/SMS/Email Analysis - Show ONLY if phishing detected */}
             {result.is_phishing && result.explanation.red_flags && Array.isArray(result.explanation.red_flags) && result.explanation.red_flags.length > 0 && (
               <div className="mb-6">
-                <h5 className="font-semibold text-gray-700 mb-3">🚨 Phishing Indicators Detected ({result.explanation.red_flag_count}/40):</h5>
+                <h5 className="font-semibold text-gray-700 mb-3">🚨 Phishing Indicators Detected:</h5>
                 <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                    {result.explanation.red_flags.map((flag, index) => (
+                    {result.explanation.red_flags.slice(0, 8).map((flag, index) => (
                       <motion.div
                         key={index}
                         initial={{ opacity: 0, x: -10 }}
@@ -165,19 +165,19 @@ const ResultCard = ({ result, loading, scanType, scanData, onDownloadPDF }) => {
                       </motion.div>
                     ))}
                   </div>
-                  {result.explanation.red_flag_count > result.explanation.red_flags.length && (
+                  {result.explanation.red_flags.length > 8 && (
                     <p className="text-red-600 text-sm mt-3 italic">
-                      ... and {result.explanation.red_flag_count - result.explanation.red_flags.length} more warning signs
+                      ... and {result.explanation.red_flags.length - 8} more warning signs
                     </p>
                   )}
                 </div>
               </div>
             )}
 
-            {/* Green Flags for URL Analysis - Show ONLY if safe */}
+            {/* Green Flags for URL/SMS/Email Analysis - Show ONLY if safe */}
             {!result.is_phishing && result.explanation.green_flags && Array.isArray(result.explanation.green_flags) && result.explanation.green_flags.length > 0 && (
               <div className="mb-6">
-                <h5 className="font-semibold text-gray-700 mb-3">✅ Safety Indicators ({result.explanation.green_flag_count}/40):</h5>
+                <h5 className="font-semibold text-gray-700 mb-3">✅ Safety Indicators:</h5>
                 <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                     {result.explanation.green_flags.slice(0, 8).map((flag, index) => (
@@ -193,9 +193,9 @@ const ResultCard = ({ result, loading, scanType, scanData, onDownloadPDF }) => {
                       </motion.div>
                     ))}
                   </div>
-                  {result.explanation.green_flag_count > 8 && (
+                  {result.explanation.green_flags.length > 8 && (
                     <p className="text-green-600 text-sm mt-3 italic">
-                      ... and {result.explanation.green_flag_count - 8} more positive indicators
+                      ... and {result.explanation.green_flags.length - 8} more positive indicators
                     </p>
                   )}
                 </div>

@@ -215,17 +215,20 @@ const addAllIndicatorsSection = (doc, result, yPos, themeColor) => {
         0: { 
           cellWidth: 12, 
           halign: 'center',
+          valign: 'middle',
           fontStyle: 'bold',
           fontSize: 11
         },
         1: { 
           cellWidth: 28,
           halign: 'center',
+          valign: 'middle',
           fontStyle: 'bold',
           fontSize: 9
         },
         2: { 
           cellWidth: 135,
+          valign: 'middle',
           fontSize: 9
         }
       },

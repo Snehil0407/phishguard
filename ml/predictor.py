@@ -343,6 +343,10 @@ class PhishGuardPredictor:
                 "uppercase_ratio": round(text_stats['uppercase_ratio'] * 100, 2),  # Convert to percentage
                 "text_length": comprehensive_analysis['content_analysis']['text_length'],
                 
+                # Build red_flags and green_flags lists for UI display
+                "red_flags": self._build_red_flags_list(red_flags),
+                "green_flags": self._build_green_flags_list(green_flags),
+                
                 # Comprehensive Red Flag Summary (ALL 40 flags)
                 "red_flag_count": red_flags['score'],
                 "red_flags_summary": {
@@ -443,6 +447,80 @@ class PhishGuardPredictor:
                 "is_phishing": False,
                 "confidence": 0.0
             }
+    
+    def _build_red_flags_list(self, red_flags):
+        """Build human-readable list of red flags for UI display"""
+        flags_list = []
+        
+        # Domain/Email flags
+        if red_flags.get('suspicious_domain'): flags_list.append("Suspicious or untrusted domain")
+        if red_flags.get('misspelled_domain'): flags_list.append("Domain appears to be misspelled")
+        if red_flags.get('free_email_provider'): flags_list.append("Using free email service")
+        if red_flags.get('random_email_pattern'): flags_list.append("Random email address pattern")
+        if red_flags.get('display_impersonation'): flags_list.append("Display name doesn't match email")
+        
+        # Authentication flags
+        if red_flags.get('suspicious_tld'): flags_list.append("Suspicious top-level domain")
+        if red_flags.get('email_mismatch'): flags_list.append("Email and name mismatch")
+        if red_flags.get('reply_to_mismatch'): flags_list.append("Reply-to address differs from sender")
+        
+        # Content request flags
+        if red_flags.get('sensitive_info_request'): flags_list.append("Requests sensitive information")
+        if red_flags.get('suspicious_attachments'): flags_list.append("Contains suspicious attachments")
+        if red_flags.get('macro_request'): flags_list.append("Requests to enable macros")
+        if red_flags.get('shortened_urls'): flags_list.append("Contains shortened URLs")
+        
+        # Language/quality flags
+        if red_flags.get('generic_greeting'): flags_list.append("Uses generic greeting")
+        if red_flags.get('grammar_issues'): flags_list.append("Contains grammar or spelling errors")
+        if red_flags.get('urgency_detected'): flags_list.append("Creates sense of urgency")
+        if red_flags.get('emotional_manipulation'): flags_list.append("Uses emotional manipulation")
+        if red_flags.get('pressure_tactics'): flags_list.append("Uses pressure tactics")
+        
+        # Security flags
+        if red_flags.get('bypass_security_request'): flags_list.append("Asks to bypass security measures")
+        if red_flags.get('unexpected_password_reset'): flags_list.append("Unexpected password reset request")
+        if red_flags.get('account_compromise_claim'): flags_list.append("Claims account was compromised")
+        
+        # Other flags
+        if red_flags.get('generous_offer'): flags_list.append("Too-good-to-be-true offer")
+        if red_flags.get('legal_threat'): flags_list.append("Contains legal threats")
+        if red_flags.get('qr_code'): flags_list.append("Contains QR code")
+        if red_flags.get('crypto_payment_request'): flags_list.append("Requests cryptocurrency payment")
+        
+        return flags_list
+    
+    def _build_green_flags_list(self, green_flags):
+        """Build human-readable list of green flags for UI display"""
+        flags_list = []
+        
+        # Domain trust flags
+        if green_flags.get('trusted_domain'): flags_list.append(f"Trusted domain: {green_flags.get('domain', 'verified')}")
+        if green_flags.get('corporate_email'): flags_list.append("Corporate email address")
+        if green_flags.get('no_misspelled_domain'): flags_list.append("Domain is not misspelled")
+        
+        # Authentication flags
+        if green_flags.get('reply_to_matches'): flags_list.append("Reply-to matches sender")
+        if green_flags.get('good_reputation'): flags_list.append("Good domain reputation")
+        
+        # Content quality flags
+        if green_flags.get('personalized_greeting'): flags_list.append("Personalized greeting")
+        if green_flags.get('professional_language'): flags_list.append("Professional language used")
+        if green_flags.get('proper_grammar'): flags_list.append("Proper grammar and spelling")
+        if green_flags.get('professional_signature'): flags_list.append("Professional email signature")
+        
+        # Security flags
+        if green_flags.get('no_urgency'): flags_list.append("No urgency or pressure tactics")
+        if green_flags.get('no_credential_request'): flags_list.append("No credential requests")
+        if green_flags.get('official_links'): flags_list.append("Links to official domains")
+        if green_flags.get('https_links'): flags_list.append("Secure HTTPS links")
+        
+        # Context flags
+        if green_flags.get('clear_reason'): flags_list.append("Clear reason for contact")
+        if green_flags.get('safe_attachments'): flags_list.append("Safe attachment types")
+        if green_flags.get('expected_communication'): flags_list.append("Expected communication type")
+        
+        return flags_list
     
     def _extract_email_features(self, sender_email):
         """Extract features from sender email address for ML model"""
