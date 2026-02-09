@@ -1,27 +1,110 @@
 import { useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
-import { Mail, Lock, Shield, AlertCircle } from 'lucide-react';
+import { Mail, Lock, Shield, AlertCircle, CheckCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login, signInWithGoogle } = useAuth();
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
+  const { login, signInWithGoogle, resetPassword } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+
+    // Trim and normalize email
+    const normalizedEmail = email.trim().toLowerCase();
+
+    // Comprehensive email validation
+    // 1. Check for @ symbol
+    if (!normalizedEmail.includes('@')) {
+      return setError('Email must contain @ symbol');
+    }
+
+    // 2. Check for exactly one @ symbol
+    const atCount = (normalizedEmail.match(/@/g) || []).length;
+    if (atCount !== 1) {
+      return setError('Email must contain exactly one @ symbol');
+    }
+
+    // 3. Basic format validation with strict regex
+    const emailRegex = /^[a-zA-Z0-9._+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!emailRegex.test(normalizedEmail)) {
+      return setError('Invalid email format');
+    }
+
+    // 4. Split and validate email parts
+    const emailParts = normalizedEmail.split('@');
+    if (emailParts.length !== 2) {
+      return setError('Invalid email format');
+    }
+
+    const [localPart, domainPart] = emailParts;
+    
+    // 5. Validate local part
+    if (!localPart || localPart.length < 2) {
+      return setError('Invalid email format');
+    }
+
+    // Check for invalid patterns
+    if (localPart.includes('..') || localPart.startsWith('.') || localPart.endsWith('.')) {
+      return setError('Invalid email format');
+    }
+
+    // 6. Validate domain part
+    if (!domainPart || domainPart.length < 4) {
+      return setError('Invalid email domain');
+    }
+
+    // Check for invalid patterns in domain
+    if (domainPart.includes('..') || domainPart.startsWith('.') || domainPart.endsWith('.') ||
+        domainPart.startsWith('-') || domainPart.endsWith('-')) {
+      return setError('Invalid email format');
+    }
+
+    // 7. Validate domain structure
+    const domainParts = domainPart.split('.');
+    if (domainParts.length < 2) {
+      return setError('Invalid email domain');
+    }
+
+    const domainName = domainParts.slice(0, -1).join('.');
+    const tld = domainParts[domainParts.length - 1];
+    
+    if (domainName.length < 2 || tld.length < 2) {
+      return setError('Invalid email format');
+    }
+
+    // Check if TLD contains only letters
+    if (!/^[a-zA-Z]+$/.test(tld)) {
+      return setError('Invalid email domain');
+    }
+
     setLoading(true);
 
     try {
-      await login(email, password);
+      await login(normalizedEmail, password);
       navigate('/dashboard');
     } catch (err) {
-      setError('Failed to sign in. Please check your credentials.');
+      if (err.code === 'auth/invalid-email') {
+        setError('Invalid email address');
+      } else if (err.code === 'auth/user-not-found') {
+        setError('No account found with this email');
+      } else if (err.code === 'auth/wrong-password') {
+        setError('Incorrect password');
+      } else if (err.code === 'auth/invalid-credential') {
+        setError('Invalid credentials. Please check your email and password.');
+      } else {
+        setError('Failed to sign in. Please check your credentials.');
+      }
       console.error(err);
     } finally {
       setLoading(false);
@@ -41,6 +124,43 @@ const Login = () => {
       setError(errorMessage);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async (e) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+
+    // Validate email format
+    const emailRegex = /^[a-zA-Z0-9._+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!emailRegex.test(resetEmail)) {
+      return setError('Please enter a valid email address');
+    }
+
+    setResetLoading(true);
+
+    try {
+      await resetPassword(resetEmail);
+      setSuccess('Password reset email sent! Check your inbox and spam folder.');
+      setTimeout(() => {
+        setShowForgotPassword(false);
+        setResetEmail('');
+        setSuccess('');
+      }, 4000);
+    } catch (err) {
+      if (err.code === 'auth/user-not-found') {
+        setError('No account found with this email');
+      } else if (err.code === 'auth/invalid-email') {
+        setError('Invalid email address');
+      } else if (err.code === 'auth/too-many-requests') {
+        setError('Too many reset attempts. Please try again later.');
+      } else {
+        setError('Failed to send reset email. Please try again.');
+      }
+      console.error(err);
+    } finally {
+      setResetLoading(false);
     }
   };
 
@@ -117,6 +237,16 @@ const Login = () => {
               </div>
             </div>
 
+            <div className="flex items-center justify-end">
+              <button
+                type="button"
+                onClick={() => setShowForgotPassword(true)}
+                className="text-sm font-medium text-blue-600 hover:text-blue-700"
+              >
+                Forgot password?
+              </button>
+            </div>
+
             <button
               type="submit"
               disabled={loading}
@@ -158,6 +288,88 @@ const Login = () => {
             </Link>
           </p>
         </div>
+
+        {/* Forgot Password Modal */}
+        <AnimatePresence>
+          {showForgotPassword && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-white/30 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+              onClick={() => setShowForgotPassword(false)}
+            >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full"
+            >
+              <h3 className="text-2xl font-bold text-gray-900 mb-2">Reset Password</h3>
+              <p className="text-gray-600 mb-6">
+                Enter your email address and we'll send you a link to reset your password.
+              </p>
+
+              {error && (
+                <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-center">
+                  <AlertCircle className="h-5 w-5 mr-2" />
+                  {error}
+                </div>
+              )}
+
+              {success && (
+                <div className="mb-4 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg flex items-center">
+                  <CheckCircle className="h-5 w-5 mr-2" />
+                  {success}
+                </div>
+              )}
+
+              <form onSubmit={handleForgotPassword} className="space-y-4">
+                <div>
+                  <label htmlFor="resetEmail" className="block text-sm font-medium text-gray-700 mb-2">
+                    Email Address
+                  </label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                    <input
+                      id="resetEmail"
+                      type="email"
+                      required
+                      value={resetEmail}
+                      onChange={(e) => setResetEmail(e.target.value)}
+                      className="pl-10 w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                      placeholder="you@example.com"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex space-x-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowForgotPassword(false);
+                      setResetEmail('');
+                      setError('');
+                      setSuccess('');
+                    }}
+                    className="flex-1 px-4 py-3 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={resetLoading}
+                    className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {resetLoading ? 'Sending...' : 'Send Reset Link'}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+        </AnimatePresence>
       </motion.div>
     </div>
   );

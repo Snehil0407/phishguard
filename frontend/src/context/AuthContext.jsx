@@ -5,7 +5,11 @@ import {
   signOut,
   onAuthStateChanged,
   GoogleAuthProvider,
-  signInWithPopup
+  signInWithPopup,
+  sendPasswordResetEmail,
+  updatePassword,
+  EmailAuthProvider,
+  reauthenticateWithCredential
 } from 'firebase/auth';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../config/firebase';
@@ -76,6 +80,31 @@ export const AuthProvider = ({ children }) => {
     return await signOut(auth);
   };
 
+  // Reset password
+  const resetPassword = async (email) => {
+    // Configure custom action URL for password reset with optimized settings
+    const actionCodeSettings = {
+      url: `${window.location.origin}/login`,
+      handleCodeInApp: false,
+    };
+    return await sendPasswordResetEmail(auth, email, actionCodeSettings);
+  };
+
+  // Change password
+  const changePassword = async (currentPassword, newPassword) => {
+    const user = auth.currentUser;
+    if (!user || !user.email) {
+      throw new Error('No user logged in');
+    }
+
+    // Re-authenticate user before changing password
+    const credential = EmailAuthProvider.credential(user.email, currentPassword);
+    await reauthenticateWithCredential(user, credential);
+    
+    // Update password
+    return await updatePassword(user, newPassword);
+  };
+
   // Fetch user profile
   const fetchUserProfile = async (uid) => {
     const userDoc = await getDoc(doc(db, 'users', uid));
@@ -105,7 +134,9 @@ export const AuthProvider = ({ children }) => {
     login,
     logout,
     signInWithGoogle,
-    fetchUserProfile
+    fetchUserProfile,
+    resetPassword,
+    changePassword
   };
 
   return (

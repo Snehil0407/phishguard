@@ -27,22 +27,182 @@ const Signup = () => {
     e.preventDefault();
     setError('');
 
+    // Trim and normalize email
+    const normalizedEmail = formData.email.trim().toLowerCase();
+
+    // Comprehensive email validation
+    // 1. Check for @ symbol
+    if (!normalizedEmail.includes('@')) {
+      return setError('Email must contain @ symbol');
+    }
+
+    // 2. Check for exactly one @ symbol
+    const atCount = (normalizedEmail.match(/@/g) || []).length;
+    if (atCount !== 1) {
+      return setError('Email must contain exactly one @ symbol');
+    }
+
+    // 3. Basic format validation with strict regex
+    const emailRegex = /^[a-zA-Z0-9._+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!emailRegex.test(normalizedEmail)) {
+      return setError('Invalid email format. Please use a valid email address');
+    }
+
+    // 4. Split and validate email parts
+    const emailParts = normalizedEmail.split('@');
+    if (emailParts.length !== 2) {
+      return setError('Invalid email format');
+    }
+
+    const [localPart, domainPart] = emailParts;
+    
+    // 5. Validate local part (username before @)
+    if (!localPart || localPart.length < 2) {
+      return setError('Email username must be at least 2 characters');
+    }
+
+    if (localPart.length > 64) {
+      return setError('Email username is too long');
+    }
+
+    // Check for invalid consecutive dots
+    if (localPart.includes('..')) {
+      return setError('Email cannot contain consecutive dots');
+    }
+
+    // Check if starts or ends with dot
+    if (localPart.startsWith('.') || localPart.endsWith('.')) {
+      return setError('Email username cannot start or end with a dot');
+    }
+
+    // 6. Validate domain part
+    if (!domainPart || domainPart.length < 4) {
+      return setError('Invalid email domain - domain is too short');
+    }
+
+    // Check for invalid consecutive dots in domain
+    if (domainPart.includes('..')) {
+      return setError('Invalid email domain format');
+    }
+
+    // Check if domain starts or ends with dot or hyphen
+    if (domainPart.startsWith('.') || domainPart.endsWith('.') || 
+        domainPart.startsWith('-') || domainPart.endsWith('-')) {
+      return setError('Invalid email domain format');
+    }
+
+    // 7. Split domain into parts
+    const domainParts = domainPart.split('.');
+    if (domainParts.length < 2) {
+      return setError('Email must have a valid domain (e.g., gmail.com)');
+    }
+
+    // 8. Validate domain name (before TLD)
+    const domainName = domainParts.slice(0, -1).join('.');
+    if (domainName.length < 2) {
+      return setError('Email domain name must be at least 2 characters');
+    }
+
+    // 9. Validate TLD (top-level domain)
+    const tld = domainParts[domainParts.length - 1];
+    if (tld.length < 2) {
+      return setError('Invalid email domain extension');
+    }
+
+    // Check if TLD contains only letters
+    if (!/^[a-zA-Z]+$/.test(tld)) {
+      return setError('Invalid email domain extension');
+    }
+
+    // 10. List of verified email providers and common domains
+    const validProviders = [
+      // Major email providers
+      'gmail.com', 'googlemail.com', 'yahoo.com', 'yahoo.co.in', 'yahoo.co.uk',
+      'outlook.com', 'hotmail.com', 'live.com', 'msn.com',
+      'icloud.com', 'me.com', 'mac.com',
+      'aol.com', 'protonmail.com', 'proton.me',
+      'zoho.com', 'zohomail.com', 'mail.com',
+      'yandex.com', 'yandex.ru', 'gmx.com', 'gmx.net',
+      'fastmail.com', 'tutanota.com', 'tutanota.de',
+      'mail.ru', 'inbox.ru', 'list.ru',
+      'rediffmail.com', 'rediff.com',
+      // Educational domains
+      'edu', 'ac.in', 'ac.uk', 'edu.in',
+      // Company domains (common patterns)
+      'company.com', 'corp.com', 'office.com'
+    ];
+
+    // Check if domain ends with a known valid provider or has valid structure
+    const isKnownProvider = validProviders.some(provider => 
+      domainPart === provider || domainPart.endsWith('.' + provider)
+    );
+
+    // Check for educational domains
+    const isEduDomain = domainPart.includes('.edu') || domainPart.includes('.ac.');
+
+    // Validate domain structure for non-listed providers
+    const hasValidStructure = domainParts.every(part => 
+      part.length >= 2 && /^[a-zA-Z0-9-]+$/.test(part)
+    );
+
+    // Additional check: domain should look legitimate
+    const commonTLDs = ['com', 'net', 'org', 'edu', 'gov', 'mil', 'co', 'in', 'uk', 'us', 'ca', 'au', 'de', 'fr', 'jp', 'cn', 'ru', 'br', 'it', 'nl', 'se', 'no', 'es', 'pl'];
+    const hasValidTLD = commonTLDs.includes(tld);
+
+    if (!isKnownProvider && !isEduDomain && !hasValidTLD) {
+      return setError('Please use a valid email provider (e.g., Gmail, Yahoo, Outlook, or your organization email)');
+    }
+
+    if (!isKnownProvider && !isEduDomain && !hasValidStructure) {
+      return setError('Invalid email domain format. Please use a legitimate email address');
+    }
+
+    // 11. Validate display name
+    if (!formData.displayName || formData.displayName.trim().length < 2) {
+      return setError('Display name must be at least 2 characters');
+    }
+
+    // 12. Check password match
     if (formData.password !== formData.confirmPassword) {
       return setError('Passwords do not match');
     }
 
-    if (formData.password.length < 6) {
-      return setError('Password must be at least 6 characters');
+    // 13. Enhanced password validation
+    if (formData.password.length < 8) {
+      return setError('Password must be at least 8 characters');
+    }
+
+    const hasUppercase = /[A-Z]/.test(formData.password);
+    const hasLowercase = /[a-z]/.test(formData.password);
+    const hasNumber = /[0-9]/.test(formData.password);
+    const hasSpecialChar = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(formData.password);
+
+    if (!hasUppercase) {
+      return setError('Password must contain at least one uppercase letter');
+    }
+
+    if (!hasLowercase) {
+      return setError('Password must contain at least one lowercase letter');
+    }
+
+    if (!hasNumber) {
+      return setError('Password must contain at least one number');
+    }
+
+    if (!hasSpecialChar) {
+      return setError('Password must contain at least one special character (!@#$%^&*...)');
     }
 
     setLoading(true);
 
     try {
-      await signup(formData.email, formData.password, formData.displayName);
+      await signup(normalizedEmail, formData.password, formData.displayName);
       navigate('/dashboard');
     } catch (err) {
       if (err.code === 'auth/email-already-in-use') {
         setError('Email already in use');
+      } else if (err.code === 'auth/invalid-email') {
+        setError('Invalid email address');
       } else if (err.code === 'auth/weak-password') {
         setError('Password is too weak');
       } else {
@@ -162,6 +322,9 @@ const Signup = () => {
                   placeholder="••••••••"
                 />
               </div>
+              <p className="mt-1 text-xs text-gray-500">
+                Must be 8+ characters with uppercase, lowercase, number & special character
+              </p>
             </div>
 
             <div>

@@ -71,7 +71,7 @@ const Navbar = () => {
                 >
                   <User className="h-5 w-5 text-gray-700" />
                   <span className="text-sm font-medium text-gray-700">
-                    {userProfile?.displayName || currentUser.email}
+                    {userProfile?.displayName || currentUser.displayName || currentUser.email?.split('@')[0] || 'User'}
                   </span>
                 </button>
 
@@ -152,7 +152,9 @@ const Navbar = () => {
                 {currentUser ? (
                   <>
                     <div className="px-4 py-2 bg-gray-50 rounded-lg">
-                      <p className="text-sm font-medium text-gray-900">{userProfile?.displayName}</p>
+                      <p className="text-sm font-medium text-gray-900">
+                        {userProfile?.displayName || currentUser.displayName || currentUser.email?.split('@')[0] || 'User'}
+                      </p>
                       <p className="text-xs text-gray-500 truncate">{currentUser.email}</p>
                     </div>
                     <button
