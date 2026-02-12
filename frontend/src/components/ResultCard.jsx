@@ -23,7 +23,7 @@ const ResultCard = ({ result, loading, scanType, scanData, onDownloadPDF }) => {
       >
         <div className="flex flex-col items-center justify-center py-12">
           <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mb-4"></div>
-          <p className="text-gray-600 text-lg">Analyzing with AI models...</p>
+          <p className="text-gray-600 text-lg">Analyzing...</p>
         </div>
       </motion.div>
     );
@@ -241,15 +241,31 @@ const ResultCard = ({ result, loading, scanType, scanData, onDownloadPDF }) => {
                   <motion.div
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
-                    className="flex items-center justify-between bg-gray-50 p-3 rounded-lg"
+                    className="bg-gray-50 p-3 rounded-lg"
                   >
-                    <div className="flex items-center space-x-2">
-                      <div className={`h-2 w-2 rounded-full ${result.explanation.phishing_keywords > 0 ? 'bg-red-500' : 'bg-green-500'}`}></div>
-                      <span className="text-gray-700">Suspicious Keywords Found</span>
+                    <div className="flex items-start space-x-2 mb-2">
+                      <div className={`h-2 w-2 rounded-full mt-1.5 flex-shrink-0 ${result.explanation.phishing_keywords > 0 ? 'bg-red-500' : 'bg-green-500'}`}></div>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-gray-700 font-medium">Suspicious Keywords Found</span>
+                          <span className={`font-semibold ${result.explanation.phishing_keywords > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                            {result.explanation.phishing_keywords}
+                          </span>
+                        </div>
+                        {result.explanation.keywords_found && result.explanation.keywords_found.length > 0 && (
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            {result.explanation.keywords_found.map((keyword, index) => (
+                              <span 
+                                key={index}
+                                className="px-2.5 py-1 bg-red-100 text-red-700 rounded-full text-xs font-medium"
+                              >
+                                {keyword}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    <span className={`font-semibold ${result.explanation.phishing_keywords > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                      {result.explanation.phishing_keywords}
-                    </span>
                   </motion.div>
                 )}
 
@@ -259,15 +275,34 @@ const ResultCard = ({ result, loading, scanType, scanData, onDownloadPDF }) => {
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.1 }}
-                    className="flex items-center justify-between bg-gray-50 p-3 rounded-lg"
+                    className="bg-gray-50 p-3 rounded-lg"
                   >
-                    <div className="flex items-center space-x-2">
-                      <div className="h-2 w-2 rounded-full bg-red-500"></div>
-                      <span className="text-gray-700">Malicious URLs Detected</span>
+                    <div className="flex items-start space-x-2">
+                      <div className="h-2 w-2 rounded-full bg-red-500 mt-1.5 flex-shrink-0"></div>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-gray-700 font-medium">Malicious URLs Detected</span>
+                          <span className="font-semibold text-red-600">
+                            {result.explanation.suspicious_urls.length}
+                          </span>
+                        </div>
+                        <div className="space-y-2 mt-3">
+                          {result.explanation.suspicious_urls.map((item, index) => (
+                            <div key={index} className="bg-red-50 border border-red-200 rounded p-2">
+                              <div className="flex items-center justify-between flex-wrap gap-2">
+                                <span className="text-red-700 font-mono text-xs break-all flex-1 min-w-0">{item.url}</span>
+                                <span className="px-2 py-0.5 bg-red-200 text-red-800 rounded text-xs font-semibold whitespace-nowrap flex-shrink-0">
+                                  Risk: {item.risk}%
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                          <p className="text-xs text-red-600 mt-2 italic">
+                            ⚠️ Do NOT click these links - they are potentially malicious
+                          </p>
+                        </div>
+                      </div>
                     </div>
-                    <span className="font-semibold text-red-600">
-                      {result.explanation.suspicious_urls.length}
-                    </span>
                   </motion.div>
                 )}
 
@@ -358,44 +393,7 @@ const ResultCard = ({ result, loading, scanType, scanData, onDownloadPDF }) => {
               </div>
             </div>
 
-            {/* Found Keywords */}
-            {result.explanation.keywords_found && result.explanation.keywords_found.length > 0 && (
-              <div className="mt-4">
-                <h5 className="font-semibold text-gray-700 mb-3">🔍 Suspicious Keywords Detected:</h5>
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                  <div className="flex flex-wrap gap-2">
-                    {result.explanation.keywords_found.map((keyword, index) => (
-                      <span 
-                        key={index}
-                        className="px-3 py-1 bg-red-100 text-red-700 rounded-full text-sm font-medium"
-                      >
-                        {keyword}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
 
-            {/* Suspicious URLs - ONLY show if URLs are CONFIRMED malicious by URL scanner */}
-            {result.explanation.suspicious_urls && result.explanation.suspicious_urls.length > 0 && (
-              <div className="mt-4">
-                <h5 className="font-semibold text-gray-700 mb-3">⚠️ Suspicious Links Detected:</h5>
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4 space-y-3">
-                  {result.explanation.suspicious_urls.map((item, index) => (
-                    <div key={index} className="flex items-center justify-between">
-                      <span className="text-red-700 font-mono text-sm break-all flex-1">{item.url}</span>
-                      <span className="ml-3 px-2 py-1 bg-red-200 text-red-800 rounded text-xs font-semibold whitespace-nowrap">
-                        Risk: {item.risk}%
-                      </span>
-                    </div>
-                  ))}
-                  <p className="text-sm text-red-600 mt-2">
-                    ⚠️ These URLs were analyzed and flagged as potentially malicious. Do NOT click them!
-                  </p>
-                </div>
-              </div>
-            )}
 
             {/* Safe URLs - Show verified safe URLs */}
             {result.explanation.safe_urls && result.explanation.safe_urls.length > 0 && (
