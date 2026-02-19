@@ -8,3 +8,8 @@ xgboost
 python-multipart
 pydantic
 python-dotenv
+# Email monitoring dependencies
+imapclient
+email-validator
+httpx
+python-dateutil

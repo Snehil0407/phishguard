@@ -14,6 +14,7 @@ import Login from './pages/Login'
 import Signup from './pages/Signup'
 import Profile from './pages/Profile'
 import ResetPassword from './pages/ResetPassword'
+import EmailMonitoring from './pages/EmailMonitoring'
 
 // Scroll to top on route change
 function ScrollToTop() {
@@ -76,6 +77,14 @@ function App() {
                 element={
                   <PrivateRoute>
                     <URLAnalysis />
+                  </PrivateRoute>
+                } 
+              />
+              <Route 
+                path="/email-monitoring" 
+                element={
+                  <PrivateRoute>
+                    <EmailMonitoring />
                   </PrivateRoute>
                 } 
               />

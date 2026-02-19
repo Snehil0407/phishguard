@@ -17,6 +17,7 @@ const Navbar = () => {
     { name: 'Email Analysis', path: '/email-analysis' },
     { name: 'SMS Analysis', path: '/sms-analysis' },
     { name: 'URL Analysis', path: '/url-analysis' },
+    { name: 'Email Monitor', path: '/email-monitoring' },
   ];
 
   const isActive = (path) => location.pathname === path;
