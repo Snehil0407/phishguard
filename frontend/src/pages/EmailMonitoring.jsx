@@ -2,11 +2,14 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Mail, Shield, CheckCircle, XCircle, Loader, AlertTriangle, Play, Square, RefreshCw, Eye, EyeOff, Info } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useEmailMonitoring } from '../context/EmailMonitoringContext';
 import api from '../services/api';
-import { saveEmailCredentials, getEmailCredentials } from '../services/userService';
+import { saveEmailCredentials } from '../services/userService';
 
 const EmailMonitoring = () => {
   const { currentUser } = useAuth();
+  const { monitoringStatus, recentAnalysis, emailCredentials, startMonitoring, stopMonitoring, refreshResults } = useEmailMonitoring();
+  
   const [step, setStep] = useState(1); // 1: Input, 2: Validating, 3: Connected
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -20,210 +23,36 @@ const EmailMonitoring = () => {
   
   const [showPassword, setShowPassword] = useState(false);
   const [validationResult, setValidationResult] = useState(null);
-  const [monitoringStatus, setMonitoringStatus] = useState({
-    isActive: false,
-    connectedEmail: null,
-    lastCheck: null,
-    scansPerformed: 0
-  });
-  const [recentAnalysis, setRecentAnalysis] = useState([]);
   const [newResultsCount, setNewResultsCount] = useState(0);
   const [showHelp, setShowHelp] = useState(false);
 
-  // Load saved credentials and check monitoring status on mount
+  // Load saved credentials from context and restore UI state
   useEffect(() => {
-    const initializeMonitoring = async () => {
-      if (!currentUser) return;
-      
-      try {
-        // Check localStorage for active monitoring (persists better than sessionStorage)
-        const savedMonitoringState = localStorage.getItem(`emailMonitoring_${currentUser.uid}`);
-        
-        // Load saved credentials
-        const savedCreds = await getEmailCredentials(currentUser.uid);
-        if (savedCreds) {
-          setEmailData(savedCreds);
-          console.log('✅ Loaded saved credentials for:', savedCreds.emailAddress);
-          
-          // Check if monitoring is already active
-          let shouldRestoreMonitoring = false;
-          
-          if (savedMonitoringState) {
-            try {
-              const parsedState = JSON.parse(savedMonitoringState);
-              if (parsedState.isActive) {
-                shouldRestoreMonitoring = true;
-                console.log('✅ Found active monitoring in localStorage');
-              }
-            } catch (e) {
-              console.error('Error parsing monitoring state:', e);
-            }
-          }
-          
-          // Always verify with backend to ensure monitoring is still running
-          try {
-            const statusResponse = await api.get('/api/email/monitoring-status', {
-              params: { user_id: currentUser.uid }
-            });
-            
-            if (statusResponse.data.success && statusResponse.data.data.is_active) {
-              shouldRestoreMonitoring = true;
-              console.log('✅ Backend confirms monitoring is ACTIVE');
-            } else {
-              console.log('⚠️ Backend says monitoring is NOT active');
-              // Clean up localStorage if backend says not active
-              localStorage.removeItem(`emailMonitoring_${currentUser.uid}`);
-            }
-          } catch (statusError) {
-            console.error('Error checking monitoring status:', statusError);
-            // If backend check fails but localStorage says active, still try to restore
-          }
-          
-          if (shouldRestoreMonitoring) {
-            // Restore monitoring state
-            const restoredState = {
-              isActive: true,
-              connectedEmail: savedCreds.emailAddress,
-              lastCheck: new Date(),
-              scansPerformed: 0
-            };
-            setMonitoringStatus(restoredState);
-            setStep(3);
-            console.log('🔄 RESTORING active monitoring session - polling will start automatically');
-            
-            // Fetch existing results
-            try {
-              const resultsResponse = await api.get('/api/email/recent-results', {
-                params: {
-                  user_id: currentUser.uid,
-                  email_address: savedCreds.emailAddress
-                }
-              });
-              
-              if (resultsResponse.data.success && resultsResponse.data.data.results) {
-                setRecentAnalysis(resultsResponse.data.data.results);
-                setMonitoringStatus(prev => ({
-                  ...prev,
-                  scansPerformed: resultsResponse.data.data.results.length
-                }));
-                console.log(`✅ Loaded ${resultsResponse.data.data.results.length} existing results`);
-              }
-            } catch (error) {
-              console.error('Error fetching initial results:', error);
-            }
-          } else {
-            console.log('❌ No active monitoring to restore');
-          }
-        }
-      } catch (error) {
-        console.error('Error initializing monitoring:', error);
-      }
-    };
+    if (!currentUser) return;
     
-    initializeMonitoring();
-  }, [currentUser]);
+    // Use credentials from global context
+    if (emailCredentials) {
+      setEmailData(emailCredentials);
+      console.log('[UI] Loaded credentials from context');
+    }
+    
+    // If global monitoring is active, set UI to show step 3
+    if (monitoringStatus.isActive) {
+      setStep(3);
+      console.log('[UI] Monitoring active - showing step 3');
+    }
+  }, [currentUser, emailCredentials, monitoringStatus.isActive]);
 
-  // Handle page visibility changes - resume polling when user returns to tab
+  // Track new results count
   useEffect(() => {
-    const handleVisibilityChange = async () => {
-      if (!document.hidden && currentUser) {
-        console.log('👁️ Page became visible - checking monitoring status...');
-        
-        // Check if monitoring should be active
-        const savedMonitoringState = localStorage.getItem(`emailMonitoring_${currentUser.uid}`);
-        if (savedMonitoringState) {
-          try {
-            const parsedState = JSON.parse(savedMonitoringState);
-            if (parsedState.isActive && emailData.emailAddress) {
-              console.log('🔄 Resuming monitoring polling...');
-              // The polling useEffect will automatically restart due to monitoringStatus.isActive
-              // Just ensure the state is set
-              setMonitoringStatus(prev => ({ ...prev, isActive: true }));
-            }
-          } catch (e) {
-            console.error('Error parsing monitoring state on visibility change:', e);
-          }
-        }
-      }
-    };
-    
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [currentUser, emailData.emailAddress]);
+    const prevCount = recentAnalysis.length;
+    // This runs when recentAnalysis updates from global context
+  }, [recentAnalysis]);
 
   // Clear messages when changing steps
   useEffect(() => {
-    // Don't clear messages automatically - let them persist for user to read
-    // Messages will be cleared by handlers when new actions are taken
+    // Don't clear messages automatically
   }, [step]);
-
-  // Poll for new results when monitoring is active
-  useEffect(() => {
-    let pollInterval;
-    
-    if (monitoringStatus.isActive && emailData.emailAddress && currentUser) {
-      console.log('🔄 Starting polling - monitoring is active');
-      
-      // Fetch results immediately
-      fetchRecentResults();
-      
-      // Then poll every 15 seconds (backend checks inbox every 2 minutes)
-      pollInterval = setInterval(async () => {
-        console.log('🔄 Polling for new results...');
-        await fetchRecentResults();
-      }, 15000); // 15 seconds - frequent UI updates
-    } else {
-      console.log('⏸️ Polling stopped - monitoring inactive or no email');
-    }
-    
-    return () => {
-      if (pollInterval) {
-        console.log('🛑 Cleaning up poll interval');
-        clearInterval(pollInterval);
-      }
-    };
-  }, [monitoringStatus.isActive, emailData.emailAddress]);
-
-  const fetchRecentResults = async () => {
-    try {
-      const response = await api.get('/api/email/recent-results', {
-        params: {
-          user_id: currentUser.uid,
-          email_address: emailData.emailAddress
-        }
-      });
-      
-      if (response.data.success && response.data.data.results) {
-        const newResults = response.data.data.results;
-        const previousCount = recentAnalysis.length;
-        const newCount = newResults.length;
-        
-        // Only update if we have results OR if we had no results before
-        // This prevents the glitch where results disappear briefly
-        if (newCount > 0 || previousCount === 0) {
-          setRecentAnalysis(newResults);
-        }
-        
-        // Show notification if new results came in
-        if (newCount > previousCount && previousCount > 0) {
-          setNewResultsCount(newCount - previousCount);
-          setTimeout(() => setNewResultsCount(0), 5000); // Clear after 5 seconds
-        }
-        
-        // Update scan count
-        setMonitoringStatus(prev => ({
-          ...prev,
-          scansPerformed: Math.max(newCount, previousCount),
-          lastCheck: new Date()
-        }));
-      }
-    } catch (err) {
-      console.error('Error fetching results:', err);
-    }
-  };
 
   const providers = [
     { id: 'gmail', name: 'Gmail', domain: '@gmail.com' },
@@ -309,32 +138,30 @@ const EmailMonitoring = () => {
   };
 
   const handleAnalyzeRecent = async () => {
+    // Start monitoring which includes analyzing recent emails
     setLoading(true);
     setError('');
 
     try {
-      const response = await api.post('/api/email/analyze-recent', {
-        user_id: currentUser.uid,
-        email_address: emailData.emailAddress,
-        password: emailData.password
-      });
-
-      if (response.data.success) {
-        setRecentAnalysis(response.data.data.results);
+      const result = await startMonitoring(emailData);
+      
+      if (result.success) {
         setError('');
-        setSuccess(`Analyzed ${response.data.data.total_analyzed} emails. Found ${response.data.data.phishing_detected} potential threats.`);
-        setMonitoringStatus(prev => ({
-          ...prev,
-          scansPerformed: response.data.data.total_analyzed
-        }));
+        setSuccess('✅ Email monitoring started successfully!');
         setStep(3);
+        
+        // Auto-dismiss success message after 3 seconds
+        setTimeout(() => {
+          setSuccess('');
+        }, 3000);
       } else {
         setSuccess('');
-        setError(response.data.message);
+        setError(result.message || 'Failed to start monitoring');
       }
     } catch (err) {
       setSuccess('');
-      setError(err.response?.data?.detail || 'Failed to analyze emails');
+      setError('Failed to start monitoring');
+      console.error('[UI] Error starting monitoring:', err);
     } finally {
       setLoading(false);
     }
@@ -345,26 +172,9 @@ const EmailMonitoring = () => {
     setError('');
 
     try {
-      const response = await api.post('/api/email/start-monitoring', {
-        user_id: currentUser.uid,
-        email_address: emailData.emailAddress,
-        password: emailData.password,
-        check_interval: 120 // 2 minutes
-      });
-
-      if (response.data.success) {
-        const newMonitoringState = {
-          isActive: true,
-          connectedEmail: emailData.emailAddress,
-          lastCheck: new Date().toISOString(),
-          scansPerformed: recentAnalysis.length
-        };
-        setMonitoringStatus(newMonitoringState);
-        
-        // Save to localStorage for persistence (better than sessionStorage)
-        localStorage.setItem(`emailMonitoring_${currentUser.uid}`, JSON.stringify(newMonitoringState));
-        console.log('💾 Saved monitoring state to localStorage');
-        
+      const result = await startMonitoring(emailData);
+      
+      if (result.success) {
         setError('');
         setSuccess('✅ Email monitoring started successfully!');
         
@@ -372,15 +182,13 @@ const EmailMonitoring = () => {
         setTimeout(() => {
           setSuccess('');
         }, 3000);
-        
-        // Note: Don't fetch immediately to prevent glitch, polling will start automatically
       } else {
         setSuccess('');
-        setError(response.data.message);
+        setError(result.message || 'Failed to start monitoring');
       }
     } catch (err) {
       setSuccess('');
-      setError(err.response?.data?.detail || 'Failed to start monitoring');
+      setError('Failed to start monitoring');
     } finally {
       setLoading(false);
     }
@@ -391,36 +199,19 @@ const EmailMonitoring = () => {
     setError('');
 
     try {
-      // Clear localStorage immediately
-      localStorage.removeItem(`emailMonitoring_${currentUser.uid}`);
-      console.log('🗑️ Cleared monitoring state from localStorage');
+      const result = await stopMonitoring();
       
-      const response = await api.post('/api/email/stop-monitoring', null, {
-        params: {
-          user_id: currentUser.uid,
-          email_address: emailData.emailAddress
-        }
-      });
-
-      if (response.data.success) {
-        setMonitoringStatus({
-          isActive: false,
-          connectedEmail: emailData.emailAddress,
-          lastCheck: null,
-          scansPerformed: 0
-        });
+      if (result.success) {
         setError('');
         setSuccess('✅ Monitoring stopped. Click Start to resume.');
-        // Keep credentials and stay on step 3 so user can easily restart
-        setRecentAnalysis([]);
         setNewResultsCount(0);
       } else {
         setSuccess('');
-        setError(response.data.message);
+        setError(result.message || 'Failed to stop monitoring');
       }
     } catch (err) {
       setSuccess('');
-      setError(err.response?.data?.detail || 'Failed to stop monitoring');
+      setError('Failed to stop monitoring');
     } finally {
       setLoading(false);
     }
@@ -429,7 +220,6 @@ const EmailMonitoring = () => {
   const handleDisconnect = async () => {
     // Simply go back to step 1 without clearing saved credentials
     setStep(1);
-    setRecentAnalysis([]);
     setValidationResult(null);
     setSuccess('');
     setError('');
@@ -786,7 +576,7 @@ const EmailMonitoring = () => {
                     )}
                   </div>
                   <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
-                    {recentAnalysis.map((result, index) => (
+                    {recentAnalysis.slice().map((result, index) => (
                       <motion.div
                         key={`${result.timestamp}-${index}`}
                         initial={{ opacity: 0, y: 20 }}
@@ -984,7 +774,7 @@ const EmailMonitoring = () => {
                         <button
                           onClick={async () => {
                             console.log('🔄 Manual refresh triggered');
-                            await fetchRecentResults();
+                            await refreshResults();
                             setSuccess('✨ Results refreshed!');
                             setTimeout(() => setSuccess(''), 2000);
                           }}

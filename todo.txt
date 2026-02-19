@@ -1,1 +1,5 @@
+result are fetched late when starting 
+whenever a new result is fetched the result card disappear first, when i click refresh 
+fix app password
+
 

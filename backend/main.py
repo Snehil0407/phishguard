@@ -391,10 +391,10 @@ async def start_email_monitoring(request: EmailMonitorRequest, background_tasks:
         # Define callback to store results
         async def store_result(result):
             if user_key in recent_scan_results:
-                # Add to beginning (newest first)
-                recent_scan_results[user_key].insert(0, result)
+                # Append to end (emails are already processed newest first)
+                recent_scan_results[user_key].append(result)
                 # Keep only last 50 results to prevent memory issues
-                recent_scan_results[user_key] = recent_scan_results[user_key][:50]
+                recent_scan_results[user_key] = recent_scan_results[user_key][-50:]
                 logger.info(f"📊 Stored result for {user_key}. Total results: {len(recent_scan_results[user_key])}")
         
         # Create monitoring task with callback

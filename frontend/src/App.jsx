@@ -1,7 +1,8 @@
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom'
 import { useEffect } from 'react'
 import './App.css'
-import { AuthProvider } from './context/AuthContext'
+import { AuthProvider, useAuth } from './context/AuthContext'
+import { EmailMonitoringProvider } from './context/EmailMonitoringContext'
 import PrivateRoute from './components/PrivateRoute'
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
@@ -27,71 +28,82 @@ function ScrollToTop() {
   return null;
 }
 
+// Wrapper component to access currentUser from AuthContext
+function AppContent() {
+  const { currentUser } = useAuth();
+
+  return (
+    <EmailMonitoringProvider currentUser={currentUser}>
+      <ScrollToTop />
+      <div className="min-h-screen flex flex-col">
+        <Navbar />
+        <main className="flex-grow">
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route 
+              path="/profile" 
+              element={
+                <PrivateRoute>
+                  <Profile />
+                </PrivateRoute>
+              } 
+            />
+            <Route 
+              path="/dashboard" 
+              element={
+                <PrivateRoute>
+                  <Dashboard />
+                </PrivateRoute>
+              } 
+            />
+            <Route 
+              path="/email-analysis" 
+              element={
+                <PrivateRoute>
+                  <EmailAnalysis />
+                </PrivateRoute>
+              } 
+            />
+            <Route 
+              path="/sms-analysis" 
+              element={
+                <PrivateRoute>
+                  <SMSAnalysis />
+                </PrivateRoute>
+              } 
+            />
+            <Route 
+              path="/url-analysis" 
+              element={
+                <PrivateRoute>
+                  <URLAnalysis />
+                </PrivateRoute>
+              } 
+            />
+            <Route 
+              path="/email-monitoring" 
+              element={
+                <PrivateRoute>
+                  <EmailMonitoring />
+                </PrivateRoute>
+              } 
+            />
+          </Routes>
+        </main>
+        <Footer />
+      </div>
+    </EmailMonitoringProvider>
+  );
+}
+
 function App() {
   return (
     <Router>
       <AuthProvider>
-        <ScrollToTop />
-        <div className="min-h-screen flex flex-col">
-          <Navbar />
-          <main className="flex-grow">
-            <Routes>
-              <Route path="/" element={<Home />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/signup" element={<Signup />} />
-              <Route path="/reset-password" element={<ResetPassword />} />
-              <Route 
-                path="/profile" 
-                element={
-                  <PrivateRoute>
-                    <Profile />
-                  </PrivateRoute>
-                } 
-              />
-              <Route 
-                path="/dashboard" 
-                element={
-                  <PrivateRoute>
-                    <Dashboard />
-                  </PrivateRoute>
-                } 
-              />
-              <Route 
-                path="/email-analysis" 
-                element={
-                  <PrivateRoute>
-                    <EmailAnalysis />
-                  </PrivateRoute>
-                } 
-              />
-              <Route 
-                path="/sms-analysis" 
-                element={
-                  <PrivateRoute>
-                    <SMSAnalysis />
-                  </PrivateRoute>
-                } 
-              />
-              <Route 
-                path="/url-analysis" 
-                element={
-                  <PrivateRoute>
-                    <URLAnalysis />
-                  </PrivateRoute>
-                } 
-              />
-              <Route 
-                path="/email-monitoring" 
-                element={
-                  <PrivateRoute>
-                    <EmailMonitoring />
-                  </PrivateRoute>
-                } 
-              />
-            </Routes>
-          </main>
-          <Footer />
-        </div>
+        <AppContent />
       </AuthProvider>
     </Router>
   )
