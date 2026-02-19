@@ -3,11 +3,25 @@ import { db } from '../config/firebase';
 
 // Simple encryption/decryption for storing credentials
 const encryptPassword = (password) => {
-  return btoa(password); // Base64 encoding (basic encryption)
+  try {
+    const encrypted = btoa(password); // Base64 encoding (basic encryption)
+    console.log('[ENCRYPT] Password length:', password.length, 'Encrypted length:', encrypted.length);
+    return encrypted;
+  } catch (error) {
+    console.error('[ENCRYPT] Error encrypting password:', error);
+    return password; // Return as-is if encryption fails
+  }
 };
 
 const decryptPassword = (encrypted) => {
-  return atob(encrypted); // Base64 decoding
+  try {
+    const decrypted = atob(encrypted); // Base64 decoding
+    console.log('[DECRYPT] Encrypted length:', encrypted.length, 'Decrypted length:', decrypted.length);
+    return decrypted;
+  } catch (error) {
+    console.error('[DECRYPT] Error decrypting password:', error);
+    return encrypted; // Return as-is if decryption fails
+  }
 };
 
 // Save email credentials
@@ -31,20 +45,36 @@ export const saveEmailCredentials = async (userId, emailAddress, password, provi
 // Get saved email credentials
 export const getEmailCredentials = async (userId) => {
   try {
+    console.log('[FIRESTORE] Getting credentials for userId:', userId);
     const credentialsRef = doc(db, 'emailCredentials', userId);
     const docSnap = await getDoc(credentialsRef);
     
     if (docSnap.exists()) {
       const data = docSnap.data();
-      return {
-        emailAddress: data.emailAddress,
-        password: decryptPassword(data.password),
-        provider: data.provider
-      };
+      console.log('[FIRESTORE] Document exists. Has emailAddress:', !!data.emailAddress, 'Has password:', !!data.password);
+      
+      // Check if credentials are actually populated (not empty strings)
+      if (data.emailAddress && data.password) {
+        const decryptedPassword = decryptPassword(data.password);
+        console.log('[FIRESTORE] ✅ Returning credentials:', {
+          email: data.emailAddress,
+          passwordLength: decryptedPassword.length,
+          provider: data.provider || 'gmail'
+        });
+        return {
+          emailAddress: data.emailAddress,
+          password: decryptedPassword,
+          provider: data.provider || 'gmail'
+        };
+      } else {
+        console.log('[FIRESTORE] ⚠️ Document exists but credentials are empty');
+      }
+    } else {
+      console.log('[FIRESTORE] ℹ️ No document found');
     }
     return null;
   } catch (error) {
-    console.error('Error getting email credentials:', error);
+    console.error('[FIRESTORE] ❌ Error getting email credentials:', error);
     return null;
   }
 };

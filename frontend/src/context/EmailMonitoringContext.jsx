@@ -22,6 +22,8 @@ export const EmailMonitoringProvider = ({ children, currentUser }) => {
   
   const [recentAnalysis, setRecentAnalysis] = useState([]);
   const [emailCredentials, setEmailCredentials] = useState(null);
+  const [fetchingInitialResults, setFetchingInitialResults] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   
   const pollIntervalRef = useRef(null);
   const keepAliveIntervalRef = useRef(null);
@@ -39,9 +41,16 @@ export const EmailMonitoringProvider = ({ children, currentUser }) => {
         
         // Load saved credentials
         const savedCreds = await getEmailCredentials(currentUser.uid);
+        console.log('🔍 [GLOBAL] getEmailCredentials result:', savedCreds ? { 
+          email: savedCreds.emailAddress, 
+          hasPassword: !!savedCreds.password,
+          passwordLength: savedCreds.password?.length,
+          provider: savedCreds.provider 
+        } : 'null');
+        
         if (savedCreds) {
           setEmailCredentials(savedCreds);
-          console.log('✅ [GLOBAL] Loaded saved credentials');
+          console.log('✅ [GLOBAL] Set emailCredentials state with saved credentials');
           
           // Check if monitoring is already active
           let shouldRestoreMonitoring = false;
@@ -178,8 +187,12 @@ export const EmailMonitoringProvider = ({ children, currentUser }) => {
   };
 
   // Fetch results from backend
-  const fetchResults = async (userId, emailAddress) => {
+  const fetchResults = async (userId, emailAddress, isManualRefresh = false) => {
     try {
+      if (isManualRefresh) {
+        setIsRefreshing(true);
+      }
+      
       const response = await api.get('/api/email/recent-results', {
         params: {
           user_id: userId,
@@ -189,15 +202,25 @@ export const EmailMonitoringProvider = ({ children, currentUser }) => {
       
       if (response.data.success && response.data.data.results) {
         const newResults = response.data.data.results;
+        
+        // Smoothly update results without clearing first
         setRecentAnalysis(newResults);
         setMonitoringStatus(prev => ({
           ...prev,
           scansPerformed: newResults.length,
           lastCheck: new Date()
         }));
+        
+        return newResults.length; // Return count for retry logic
       }
+      return 0;
     } catch (error) {
       console.error('[GLOBAL] Error fetching results:', error);
+      return 0;
+    } finally {
+      if (isManualRefresh) {
+        setIsRefreshing(false);
+      }
     }
   };
 
@@ -228,11 +251,37 @@ export const EmailMonitoringProvider = ({ children, currentUser }) => {
         localStorage.setItem(`emailMonitoring_${currentUser.uid}`, JSON.stringify(newState));
         console.log('💾 [GLOBAL] Saved monitoring state');
         
-        // Immediately fetch initial results (monitoring has started in background)
+        // Immediately fetch initial results with retry logic
         console.log('🔄 [GLOBAL] Fetching initial results...');
-        // Wait a moment for backend to process first batch
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        await fetchResults(currentUser.uid, emailData.emailAddress);
+        setFetchingInitialResults(true);
+        
+        // Try multiple times with increasing delays
+        let attempts = 0;
+        const maxAttempts = 3;
+        let resultsCount = 0;
+        
+        while (attempts < maxAttempts && resultsCount === 0) {
+          attempts++;
+          const delay = attempts * 2000; // 2s, 4s, 6s
+          
+          console.log(`⏳ [GLOBAL] Attempt ${attempts}/${maxAttempts} - waiting ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          
+          resultsCount = await fetchResults(currentUser.uid, emailData.emailAddress);
+          
+          if (resultsCount > 0) {
+            console.log(`✅ [GLOBAL] Got ${resultsCount} initial results!`);
+            break;
+          }
+          
+          if (attempts < maxAttempts) {
+            console.log('⚠️ [GLOBAL] No results yet, retrying...');
+          } else {
+            console.log(`ℹ️ [GLOBAL] No results after ${maxAttempts} attempts. Backend may still be processing.`);
+          }
+        }
+        
+        setFetchingInitialResults(false);
         
         // Start polling and keep-alive
         startPolling(emailData);
@@ -289,17 +338,26 @@ export const EmailMonitoringProvider = ({ children, currentUser }) => {
   // Refresh results manually
   const refreshResults = async () => {
     if (emailCredentials) {
-      await fetchResults(currentUser.uid, emailCredentials.emailAddress);
+      await fetchResults(currentUser.uid, emailCredentials.emailAddress, true);
     }
+  };
+
+  // Update credentials (called after validation/saving)
+  const updateCredentials = (credentials) => {
+    setEmailCredentials(credentials);
+    console.log('✅ [GLOBAL] Updated credentials in context');
   };
 
   const value = {
     monitoringStatus,
     recentAnalysis,
     emailCredentials,
+    fetchingInitialResults,
+    isRefreshing,
     startMonitoring,
     stopMonitoring,
-    refreshResults
+    refreshResults,
+    updateCredentials
   };
 
   return (

@@ -8,7 +8,7 @@ import { saveEmailCredentials } from '../services/userService';
 
 const EmailMonitoring = () => {
   const { currentUser } = useAuth();
-  const { monitoringStatus, recentAnalysis, emailCredentials, startMonitoring, stopMonitoring, refreshResults } = useEmailMonitoring();
+  const { monitoringStatus, recentAnalysis, emailCredentials, fetchingInitialResults, isRefreshing, startMonitoring, stopMonitoring, refreshResults, updateCredentials } = useEmailMonitoring();
   
   const [step, setStep] = useState(1); // 1: Input, 2: Validating, 3: Connected
   const [loading, setLoading] = useState(false);
@@ -26,14 +26,51 @@ const EmailMonitoring = () => {
   const [newResultsCount, setNewResultsCount] = useState(0);
   const [showHelp, setShowHelp] = useState(false);
 
+  // Debug: Log emailData changes
+  useEffect(() => {
+    console.log('[UI] 📝 emailData state changed:', {
+      email: emailData.emailAddress,
+      hasPassword: !!emailData.password,
+      passwordLength: emailData.password?.length,
+      passwordPreview: emailData.password ? `${emailData.password.substring(0, 3)}...` : 'empty',
+      provider: emailData.provider
+    });
+  }, [emailData]);
+
   // Load saved credentials from context and restore UI state
   useEffect(() => {
-    if (!currentUser) return;
+    console.log('[UI] ═══════════════════════════════════════');
+    console.log('[UI] Effect triggered');
+    console.log('[UI] - currentUser exists:', !!currentUser);
+    console.log('[UI] - emailCredentials exists:', !!emailCredentials);
+    console.log('[UI] - emailCredentials value:', emailCredentials);
+    console.log('[UI] - monitoringStatus.isActive:', monitoringStatus.isActive);
+    console.log('[UI] - Current emailData:', emailData);
+    
+    if (!currentUser) {
+      console.log('[UI] ⚠️ No currentUser, skipping...');
+      return;
+    }
     
     // Use credentials from global context
-    if (emailCredentials) {
-      setEmailData(emailCredentials);
-      console.log('[UI] Loaded credentials from context');
+    if (emailCredentials && emailCredentials.emailAddress) {
+      console.log('[UI] ✅ Credentials found in context!');
+      console.log('[UI] - Email:', emailCredentials.emailAddress);
+      console.log('[UI] - Password length:', emailCredentials.password?.length);
+      console.log('[UI] - Provider:', emailCredentials.provider);
+      
+      // Set emailData with a fresh object to ensure React sees the change
+      const newData = {
+        emailAddress: emailCredentials.emailAddress || '',
+        password: emailCredentials.password || '',
+        provider: emailCredentials.provider || 'gmail'
+      };
+      
+      console.log('[UI] 📝 Setting emailData to:', newData);
+      setEmailData(newData);
+      console.log('[UI] ✅ setEmailData called!');
+    } else {
+      console.log('[UI] ⚠️ No credentials in context yet');
     }
     
     // If global monitoring is active, set UI to show step 3
@@ -41,6 +78,7 @@ const EmailMonitoring = () => {
       setStep(3);
       console.log('[UI] Monitoring active - showing step 3');
     }
+    console.log('[UI] ═══════════════════════════════════════');
   }, [currentUser, emailCredentials, monitoringStatus.isActive]);
 
   // Track new results count
@@ -108,6 +146,13 @@ const EmailMonitoring = () => {
             emailData.provider
           );
           console.log('[VALIDATE] ✅ Credentials saved to Firestore');
+          
+          // Update context with saved credentials
+          updateCredentials({
+            emailAddress: emailData.emailAddress,
+            password: cleanPassword,
+            provider: emailData.provider
+          });
         } catch (saveError) {
           console.warn('[VALIDATE] ⚠️ Could not save credentials:', saveError);
           // Don't show error to user since validation succeeded
@@ -392,20 +437,6 @@ const EmailMonitoring = () => {
             <div className="space-y-6">
               <h2 className="text-2xl font-bold text-gray-800 mb-6">Connect Email Account</h2>
               
-              {/* Saved Credentials Indicator */}
-              {emailData.emailAddress && emailData.password && (
-                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-start space-x-3">
-                  <Info className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-sm font-medium text-blue-900">Saved Credentials Found</p>
-                    <p className="text-xs text-blue-700 mt-1">
-                      Using saved credentials for <span className="font-semibold">{emailData.emailAddress}</span>. 
-                      You can update them below if needed.
-                    </p>
-                  </div>
-                </div>
-              )}
-              
               {/* Provider Selection */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-3">Email Provider</label>
@@ -561,8 +592,30 @@ const EmailMonitoring = () => {
                 </p>
               </div>
 
+              {fetchingInitialResults && recentAnalysis.length === 0 && (
+                <div className="bg-blue-50 rounded-xl p-8 border border-blue-200">
+                  <div className="flex flex-col items-center justify-center space-y-4">
+                    <Loader className="h-12 w-12 text-blue-600 animate-spin" />
+                    <div className="text-center">
+                      <p className="text-lg font-semibold text-blue-900">Analyzing your emails...</p>
+                      <p className="text-sm text-blue-700 mt-2">This may take a few moments as we scan your inbox</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {recentAnalysis.length > 0 && (
-                <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
+                <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm relative">
+                  {/* Refresh overlay indicator */}
+                  {isRefreshing && (
+                    <div className="absolute top-4 right-4 z-10">
+                      <div className="flex items-center space-x-2 bg-blue-100 text-blue-700 px-3 py-1.5 rounded-full text-sm font-medium shadow-sm">
+                        <RefreshCw className="h-4 w-4 animate-spin" />
+                        <span>Refreshing...</span>
+                      </div>
+                    </div>
+                  )}
+                  
                   <div className="flex items-center justify-between mb-6">
                     <h3 className="text-lg font-semibold text-gray-800">Recent Analysis Results</h3>
                     {newResultsCount > 0 && (
@@ -576,18 +629,25 @@ const EmailMonitoring = () => {
                     )}
                   </div>
                   <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
-                    {recentAnalysis.slice().map((result, index) => (
-                      <motion.div
-                        key={`${result.timestamp}-${index}`}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: index * 0.05 }}
-                        className={`p-5 rounded-xl border-2 shadow-sm hover:shadow-md transition-all ${
-                          result.analysis.is_phishing
-                            ? 'bg-gradient-to-br from-red-50 to-red-100 border-red-300'
-                            : 'bg-gradient-to-br from-green-50 to-green-100 border-green-300'
-                        }`}
-                      >
+                    <AnimatePresence mode="popLayout">
+                      {recentAnalysis.slice().map((result, index) => {
+                        // Use timestamp + email subject as stable key
+                        const stableKey = result.timestamp + result.email_data.subject;
+                        
+                        return (
+                          <motion.div
+                            key={stableKey}
+                            layout
+                            initial={false}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            transition={{ duration: 0.2 }}
+                            className={`p-5 rounded-xl border-2 shadow-sm hover:shadow-md transition-all ${
+                              result.analysis.is_phishing
+                                ? 'bg-gradient-to-br from-red-50 to-red-100 border-red-300'
+                                : 'bg-gradient-to-br from-green-50 to-green-100 border-green-300'
+                            }`}
+                          >
                         <div className="flex items-start justify-between mb-3">
                           <div className="flex-1 min-w-0 space-y-2">
                             <div className="flex items-center space-x-2">
@@ -638,7 +698,9 @@ const EmailMonitoring = () => {
                           </span>
                         </div>
                       </motion.div>
-                    ))}
+                    );
+                    })}
+                    </AnimatePresence>
                   </div>
                 </div>
               )}
@@ -778,11 +840,11 @@ const EmailMonitoring = () => {
                             setSuccess('✨ Results refreshed!');
                             setTimeout(() => setSuccess(''), 2000);
                           }}
-                          disabled={loading}
+                          disabled={loading || isRefreshing}
                           className="py-2 px-4 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-all disabled:opacity-50 flex items-center space-x-2"
                         >
-                          <RefreshCw className="h-4 w-4" />
-                          <span>Refresh</span>
+                          <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                          <span>{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
                         </button>
                         <button
                           onClick={handleStopMonitoring}
