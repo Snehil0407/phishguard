@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Shield, Mail, MessageSquare, Link as LinkIcon, ArrowRight, CheckCircle, Zap, Lock } from 'lucide-react';
+import { Shield, Mail, MessageSquare, Link as LinkIcon, ArrowRight, CheckCircle, Zap, Lock, Activity } from 'lucide-react';
 
 const Home = () => {
   const features = [
@@ -10,6 +10,13 @@ const Home = () => {
       description: 'Detect phishing attempts in email content with advanced NLP',
       color: 'from-blue-500 to-cyan-500',
       link: '/email-analysis'
+    },
+    {
+      icon: Activity,
+      title: 'Email Monitoring',
+      description: 'Real-time IMAP monitoring with automated phishing detection',
+      color: 'from-green-500 to-emerald-500',
+      link: '/email-monitoring'
     },
     {
       icon: MessageSquare,
@@ -28,7 +35,7 @@ const Home = () => {
   ];
 
   const stats = [
-    { label: 'Detection Types', value: '3' },
+    { label: 'Detection Types', value: '4' },
     { label: 'Response Time', value: '<2s' },
     { label: 'Protected Users', value: '1000+' },
     { label: 'Threats Blocked', value: '5000+' }
@@ -138,7 +145,7 @@ const Home = () => {
             </p>
           </motion.div>
 
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
             {features.map((feature, index) => (
               <motion.div
                 key={index}
@@ -243,6 +250,16 @@ const Home = () => {
                     <div>
                       <div className="font-semibold text-gray-800">Email Protection</div>
                       <div className="text-sm text-gray-600">Advanced threat detection</div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center space-x-4">
+                    <div className="bg-green-100 p-3 rounded-lg">
+                      <Activity className="h-6 w-6 text-green-600" />
+                    </div>
+                    <div>
+                      <div className="font-semibold text-gray-800">Email Monitoring</div>
+                      <div className="text-sm text-gray-600">Real-time inbox scanning</div>
                     </div>
                   </div>
                   

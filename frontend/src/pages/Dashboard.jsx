@@ -5,7 +5,7 @@ import {
   Shield, Mail, MessageSquare, Link as LinkIcon, 
   TrendingUp, AlertTriangle, CheckCircle, BarChart3,
   Clock, Zap, ArrowRight, Loader2, Download, Trash2,
-  Search, Filter, X, Calendar, PieChart, Globe, User, ChevronDown
+  Search, Filter, X, Calendar, PieChart, Globe, User, ChevronDown, Activity
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { getUserStats, getRecentScans, deleteScanResult } from '../services/scanService';
@@ -252,6 +252,13 @@ const Dashboard = () => {
       link: '/email-analysis'
     },
     {
+      title: 'Email Monitoring',
+      description: 'Real-time inbox scan',
+      icon: Activity,
+      color: 'from-green-500 to-emerald-500',
+      link: '/email-monitoring'
+    },
+    {
       title: 'SMS Analysis',
       description: 'Scan text messages',
       icon: MessageSquare,
@@ -269,7 +276,7 @@ const Dashboard = () => {
       title: 'My Profile',
       description: 'View account & history',
       icon: User,
-      color: 'from-green-500 to-teal-500',
+      color: 'from-indigo-500 to-purple-500',
       link: '/profile'
     }
   ];
