@@ -5,6 +5,8 @@ Monitors email accounts via IMAP and analyzes incoming emails for phishing threa
 
 import imaplib
 import email
+import socket
+import ssl
 from email.header import decode_header
 from email.utils import parseaddr
 import logging
@@ -81,12 +83,16 @@ class EmailMonitorService:
             # Get IMAP settings
             imap_settings = self.get_imap_server(email_address)
             
-            # Attempt connection
+            # Attempt connection with a 15-second timeout
             logger.info(f"🔌 Connecting to {imap_settings['host']}...")
-            mail = imaplib.IMAP4_SSL(imap_settings['host'], imap_settings['port'])
-            mail.login(email_address, password)
-            mail.select('INBOX', readonly=True)
-            mail.logout()
+            socket.setdefaulttimeout(15)
+            try:
+                mail = imaplib.IMAP4_SSL(imap_settings['host'], imap_settings['port'])
+                mail.login(email_address, password)
+                mail.select('INBOX', readonly=True)
+                mail.logout()
+            finally:
+                socket.setdefaulttimeout(None)
             
             logger.info(f"✅ Successfully validated credentials for {email_address}")
             return True, None
@@ -137,8 +143,43 @@ class EmailMonitorService:
             logger.error(f"❌ {error_msg}")
             return False, error_msg
             
+        except (socket.timeout, TimeoutError):
+            error_msg = (
+                "Connection timed out reaching the IMAP server.\n"
+                "Possible causes:\n"
+                "1. Your firewall or antivirus is blocking outbound port 993\n"
+                "2. Your network/ISP is blocking IMAP connections\n"
+                "3. Try disabling Windows Firewall temporarily to test"
+            )
+            logger.error(f"❌ IMAP timeout: {error_msg}")
+            return False, error_msg
+
+        except ConnectionRefusedError:
+            error_msg = (
+                "IMAP connection was refused by the server.\n"
+                "Make sure IMAP access is enabled in your email account settings."
+            )
+            logger.error(f"❌ Connection refused: {error_msg}")
+            return False, error_msg
+
+        except ssl.SSLError as e:
+            error_msg = f"SSL/TLS error connecting to mail server: {str(e)}"
+            logger.error(f"❌ SSL error: {error_msg}")
+            return False, error_msg
+
+        except OSError as e:
+            error_msg = (
+                f"Network error: {str(e)}\n"
+                "Possible causes:\n"
+                "1. No internet connection\n"
+                "2. Firewall blocking outbound port 993 (IMAP SSL)\n"
+                "3. Try temporarily disabling your antivirus/firewall"
+            )
+            logger.error(f"❌ OS/Network error: {error_msg}")
+            return False, error_msg
+
         except Exception as e:
-            error_msg = f"Connection error: {str(e)}"
+            error_msg = f"Unexpected connection error: {str(e)}"
             logger.error(f"❌ {error_msg}")
             return False, error_msg
     

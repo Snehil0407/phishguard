@@ -265,7 +265,7 @@ PhishGuard's most powerful feature is its **automated email monitoring system** 
 
 ### Model Training & Evaluation
 
-PhishGuard uses **Random Forest Classifiers** across all three detection channels, trained on diverse datasets with comprehensive feature engineering.
+PhishGuard trains **multiple ML models** (Logistic Regression, Naive Bayes, XGBoost, Gradient Boosting) across all three detection channels and automatically selects the best-performing model. All best models are **XGBoost classifiers**, trained on diverse datasets with comprehensive feature engineering.
 
 #### 📧 Email Detection Model
 
@@ -280,15 +280,19 @@ PhishGuard uses **Random Forest Classifiers** across all three detection channel
 - Special character ratios
 - Link count and suspicious link patterns
 
-**Performance**:
-```
-Accuracy: 96.61%
-Precision: 96.34%
-Recall: 97.06%
-F1-Score: 96.70%
-```
+**Models Trained & Compared**:
+- Logistic Regression: 95.93%
+- Naive Bayes: 91.95%
+- **XGBoost: 97.40% ← Best Selected**
 
-**Model**: Random Forest with 100 estimators
+**Best Model Performance (XGBoost)**:
+```
+Accuracy:  97.40%
+Precision: 97.39%
+Recall:    97.40%
+F1-Score:  97.39%
+CV Score:  97.10% (+/- 0.60%)
+```
 
 #### 📱 SMS Detection Model
 
@@ -303,37 +307,47 @@ F1-Score: 96.70%
 - Number occurrence patterns
 - URL presence
 
-**Performance**:
-```
-Accuracy: 98.30%
-Precision: 98.42%
-Recall: 97.89%
-F1-Score: 98.15%
-```
+**Models Trained & Compared**:
+- Logistic Regression: 97.13%
+- Naive Bayes: 97.94%
+- **XGBoost: 98.12% ← Best Selected**
 
-**Model**: Random Forest with 100 estimators
+**Best Model Performance (XGBoost)**:
+```
+Accuracy:  98.12%
+Precision: 98.10%
+Recall:    98.12%
+F1-Score:  98.10%
+CV Score:  97.98% (+/- 0.54%)
+```
 
 #### 🔗 URL Detection Model
 
 **Dataset**: 100,000 URLs (50,000 phishing, 50,000 legitimate)
 
-**Features Extracted** (30+ features):
-- Domain-based: Length, subdomain count, IP address usage
-- Path-based: Length, depth, suspicious keywords
-- Character-based: Special char ratios, digit count, entropy
-- Security: HTTPS usage, @ symbol presence, double slash
-- Behavioral: Redirect count, URL shortener detection
-- Lexical: TLD analysis, domain age indicators
+**Features Extracted** (23 engineered features):
+- `url_length`, `is_long_url` — URL length signals
+- `has_ip`, `has_typosquatting`, `has_brand_mismatch` — Domain spoofing
+- `has_excessive_subdomains`, `subdomain_count` — Subdomain abuse
+- `is_https`, `is_url_shortener`, `is_trusted` — Trust indicators
+- `suspicious_word_count`, `has_urgent_words` — Keyword patterns
+- `has_suspicious_chars`, `has_port` — Structural anomalies
+- `dot_count`, `dash_count`, `at_count`, `slash_count` — Character counts
+- `question_count`, `equals_count`, `underscore_count`, `percent_count`, `ampersand_count`
 
-**Performance**:
+**Models Trained & Compared**:
+- Logistic Regression: 99.76%
+- Gradient Boosting: 99.80%
+- **XGBoost: 99.81% ← Best Selected**
+
+**Best Model Performance (XGBoost)**:
 ```
-Accuracy: 99.80%
+Accuracy:  99.81%
 Precision: 99.81%
-Recall: 99.79%
-F1-Score: 99.80%
+Recall:    99.81%
+F1-Score:  99.81%
+CV Score:  99.79% (+/- 0.01%)
 ```
-
-**Model**: Random Forest with 100 estimators
 
 ### Explainable AI
 
@@ -421,15 +435,13 @@ Each prediction comes with:
 ```
 phishguard/
 ├── backend/
-│   ├── main.py                      # FastAPI application entry point
+│   ├── main.py                      # FastAPI application entry point (542 lines)
 │   ├── requirements.txt             # Python dependencies
+│   ├── .env.example                 # Environment variables template
+│   ├── .gitignore                   # Git ignore rules
 │   ├── services/
 │   │   ├── email_monitor.py         # Email monitoring service (421 lines)
 │   │   └── __init__.py
-│   ├── EMAIL_AUTH_TROUBLESHOOTING.md
-│   ├── EMAIL_MONITORING_GUIDE.md
-│   ├── QUICKSTART.md
-│   └── README.md
 │
 ├── frontend/
 │   ├── src/
@@ -477,12 +489,29 @@ phishguard/
 │   │   ├── sms/                     # SMS datasets (5K samples)
 │   │   └── urls/                    # URL datasets (100K samples)
 │   ├── models/
-│   │   ├── email_model.joblib       # Trained email model
-│   │   ├── email_vectorizer.joblib  # Email TF-IDF vectorizer
-│   │   ├── sms_model.joblib         # Trained SMS model
-│   │   ├── sms_vectorizer.joblib    # SMS TF-IDF vectorizer
-│   │   ├── url_model.joblib         # Trained URL model
-│   │   └── url_feature_names.json   # URL feature configuration
+│   │   ├── email_model_best.pkl              # Best email model (XGBoost)
+│   │   ├── email_model_xgboost.pkl           # XGBoost email model
+│   │   ├── email_model_logistic_regression.pkl
+│   │   ├── email_model_naive_bayes.pkl
+│   │   ├── email_vectorizer.pkl              # Email TF-IDF vectorizer
+│   │   ├── email_training_report.txt         # Training metrics
+│   │   ├── email_evaluation_results.json
+│   │   ├── sms_model_best.pkl                # Best SMS model (XGBoost)
+│   │   ├── sms_model_xgboost.pkl
+│   │   ├── sms_model_logistic_regression.pkl
+│   │   ├── sms_model_naive_bayes.pkl
+│   │   ├── sms_vectorizer.pkl                # SMS TF-IDF vectorizer
+│   │   ├── sms_training_report.txt
+│   │   ├── sms_evaluation_results.json
+│   │   ├── url_model_best.pkl                # Best URL model (XGBoost)
+│   │   ├── url_model_xgboost.pkl
+│   │   ├── url_model_logistic_regression.pkl
+│   │   ├── url_model_gradient_boosting.pkl
+│   │   ├── url_feature_extractor.pkl         # URL feature pipeline
+│   │   ├── url_scaler.pkl                    # URL feature scaler
+│   │   ├── url_feature_names.json            # 23 feature names
+│   │   ├── url_training_report.txt
+│   │   └── url_evaluation_results.json
 │   ├── training/
 │   │   ├── train_email_model.py     # Email model training
 │   │   ├── train_sms_model.py       # SMS model training
@@ -563,7 +592,41 @@ npm run dev
 
 Frontend will run at: **http://localhost:5173**
 
-### 4. Firebase Setup
+### 4. Environment Variables
+
+Copy the example and fill in your values:
+
+```bash
+cd backend
+copy .env.example .env
+```
+
+Edit `backend/.env`:
+
+```env
+PORT=8000
+HOST=0.0.0.0
+DEBUG=True
+FIREBASE_API_KEY=
+FIREBASE_AUTH_DOMAIN=
+FIREBASE_PROJECT_ID=
+MODEL_PATH=./models/
+```
+
+For the frontend, create `frontend/.env`:
+
+```env
+VITE_FIREBASE_API_KEY=your_api_key
+VITE_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=your_project_id
+VITE_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
+VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+VITE_FIREBASE_APP_ID=your_app_id
+VITE_FIREBASE_MEASUREMENT_ID=G-XXXXXXXXXX
+VITE_API_URL=http://localhost:8000
+```
+
+### 5. Firebase Setup
 
 #### A. Create Firebase Project
 1. Go to [Firebase Console](https://console.firebase.google.com/)
@@ -634,7 +697,7 @@ export const auth = getAuth(app);
 export const db = getFirestore(app);
 ```
 
-### 5. Verify Setup
+### 6. Verify Setup
 
 1. **Backend Health Check**:
    ```bash

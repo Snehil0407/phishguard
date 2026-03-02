@@ -203,15 +203,24 @@ export const EmailMonitoringProvider = ({ children, currentUser }) => {
       if (response.data.success && response.data.data.results) {
         const newResults = response.data.data.results;
         
-        // Smoothly update results without clearing first
-        setRecentAnalysis(newResults);
-        setMonitoringStatus(prev => ({
-          ...prev,
-          scansPerformed: newResults.length,
-          lastCheck: new Date()
-        }));
+        if (newResults.length > 0) {
+          // Only replace results when we have actual data.
+          // This prevents the results panel from disappearing on empty / transient API responses.
+          setRecentAnalysis(newResults);
+          setMonitoringStatus(prev => ({
+            ...prev,
+            scansPerformed: newResults.length,
+            lastCheck: new Date()
+          }));
+        } else {
+          // No new results yet — just update the timestamp, keep existing results visible.
+          setMonitoringStatus(prev => ({
+            ...prev,
+            lastCheck: new Date()
+          }));
+        }
         
-        return newResults.length; // Return count for retry logic
+        return newResults.length;
       }
       return 0;
     } catch (error) {

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Mail, Shield, CheckCircle, XCircle, Loader, AlertTriangle, Play, Square, RefreshCw, Eye, EyeOff, Info } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -25,6 +25,9 @@ const EmailMonitoring = () => {
   const [validationResult, setValidationResult] = useState(null);
   const [newResultsCount, setNewResultsCount] = useState(0);
   const [showHelp, setShowHelp] = useState(false);
+  // Once results have been loaded at least once, keep the container mounted
+  // even if recentAnalysis briefly goes empty between polls.
+  const hasLoadedResultsRef = useRef(false);
 
   // Debug: Log emailData changes
   useEffect(() => {
@@ -604,7 +607,10 @@ const EmailMonitoring = () => {
                 </div>
               )}
 
-              {recentAnalysis.length > 0 && (
+              {(recentAnalysis.length > 0 || hasLoadedResultsRef.current) && (() => {
+                // Mark that results have been shown — the panel stays mounted from here on
+                if (recentAnalysis.length > 0) hasLoadedResultsRef.current = true;
+                return (
                 <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm relative">
                   {/* Refresh overlay indicator */}
                   {isRefreshing && (
@@ -629,20 +635,22 @@ const EmailMonitoring = () => {
                     )}
                   </div>
                   <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
-                    <AnimatePresence mode="popLayout">
-                      {recentAnalysis.slice().map((result, index) => {
-                        // Use timestamp + email subject as stable key
+                    {recentAnalysis.length === 0 ? (
+                      <div className="flex items-center justify-center py-8 text-gray-400">
+                        <Loader className="h-5 w-5 animate-spin mr-2" />
+                        <span>Waiting for results...</span>
+                      </div>
+                    ) : (
+                      recentAnalysis.map((result) => {
                         const stableKey = result.timestamp + result.email_data.subject;
-                        
                         return (
                           <motion.div
                             key={stableKey}
-                            layout
-                            initial={false}
+                            layout="position"
+                            initial={{ opacity: 0, y: 8 }}
                             animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.95 }}
-                            transition={{ duration: 0.2 }}
-                            className={`p-5 rounded-xl border-2 shadow-sm hover:shadow-md transition-all ${
+                            transition={{ duration: 0.18 }}
+                            className={`p-5 rounded-xl border-2 shadow-sm hover:shadow-md transition-shadow ${
                               result.analysis.is_phishing
                                 ? 'bg-gradient-to-br from-red-50 to-red-100 border-red-300'
                                 : 'bg-gradient-to-br from-green-50 to-green-100 border-green-300'
@@ -699,11 +707,12 @@ const EmailMonitoring = () => {
                         </div>
                       </motion.div>
                     );
-                    })}
-                    </AnimatePresence>
+                    })
+                    )}
                   </div>
                 </div>
-              )}
+                );
+              })()}
 
               {/* Collapsible Help Section */}
               <div className="border border-blue-200 rounded-xl overflow-hidden">
