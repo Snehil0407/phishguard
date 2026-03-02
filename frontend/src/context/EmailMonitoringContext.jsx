@@ -27,6 +27,7 @@ export const EmailMonitoringProvider = ({ children, currentUser }) => {
   
   const pollIntervalRef = useRef(null);
   const keepAliveIntervalRef = useRef(null);
+  const notifiedKeysRef = useRef(new Set());
 
   // Initialize monitoring on app load
   useEffect(() => {
@@ -98,8 +99,8 @@ export const EmailMonitoringProvider = ({ children, currentUser }) => {
             startPolling(savedCreds);
             startKeepAlive(savedCreds);
             
-            // Fetch existing results
-            fetchResults(currentUser.uid, savedCreds.emailAddress);
+            // Fetch existing results silently (marks them as seen, no notifications for old emails)
+            fetchResults(currentUser.uid, savedCreds.emailAddress, false, true);
           }
         }
       } catch (error) {
@@ -110,6 +111,37 @@ export const EmailMonitoringProvider = ({ children, currentUser }) => {
     initializeMonitoring();
   }, [currentUser]);
 
+  // Request browser notification permission
+  const requestNotificationPermission = async () => {
+    if (!('Notification' in window)) return 'unsupported';
+    if (Notification.permission === 'granted') return 'granted';
+    if (Notification.permission === 'denied') return 'denied';
+    const result = await Notification.requestPermission();
+    return result;
+  };
+
+  // Fire a browser notification for a phishing result
+  const firePhishingNotification = (result) => {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    const from = result.email_data?.from_name || result.email_data?.from_email || 'Unknown sender';
+    const subject = result.email_data?.subject || 'No subject';
+    const risk = result.analysis?.risk_score ?? '?';
+    try {
+      const notification = new Notification('⚠️ Phishing Email Detected — PhishGuard', {
+        body: `From: ${from}\nSubject: ${subject}\nRisk Score: ${risk}%`,
+        icon: '/vite.svg',
+        tag: `phishguard-phish-${result.timestamp}`,
+        requireInteraction: true
+      });
+      notification.onclick = () => {
+        window.focus();
+        notification.close();
+      };
+    } catch (e) {
+      console.warn('[NOTIFY] Could not show notification:', e);
+    }
+  };
+
   // Start polling for results
   const startPolling = (creds) => {
     if (pollIntervalRef.current) {
@@ -118,10 +150,11 @@ export const EmailMonitoringProvider = ({ children, currentUser }) => {
     
     console.log('✅ [GLOBAL] Starting polling interval');
     
-    // Fetch immediately
-    fetchResults(currentUser.uid, creds.emailAddress);
+    // Fetch immediately in silent mode — marks existing emails as seen
+    // so we only notify for NEW emails that arrive after this point.
+    fetchResults(currentUser.uid, creds.emailAddress, false, true);
     
-    // Then poll every 15 seconds
+    // Then poll every 15 seconds (not silent — new phishing triggers notifications)
     pollIntervalRef.current = setInterval(() => {
       console.log('🔄 [GLOBAL POLL] Fetching results...');
       fetchResults(currentUser.uid, creds.emailAddress);
@@ -187,7 +220,8 @@ export const EmailMonitoringProvider = ({ children, currentUser }) => {
   };
 
   // Fetch results from backend
-  const fetchResults = async (userId, emailAddress, isManualRefresh = false) => {
+  // silentInit=true: mark existing results as seen without notifying (used on session restore)
+  const fetchResults = async (userId, emailAddress, isManualRefresh = false, silentInit = false) => {
     try {
       if (isManualRefresh) {
         setIsRefreshing(true);
@@ -204,6 +238,24 @@ export const EmailMonitoringProvider = ({ children, currentUser }) => {
         const newResults = response.data.data.results;
         
         if (newResults.length > 0) {
+          if (!silentInit) {
+            // Find the single newest result that hasn't been seen before
+            // Results are assumed newest-first; find the first unseen phishing one
+            const firstNewPhishing = newResults.find(result => {
+              const key = (result.timestamp || '') + (result.email_data?.subject || '');
+              return !notifiedKeysRef.current.has(key) && result.analysis?.is_phishing;
+            });
+            if (firstNewPhishing) {
+              firePhishingNotification(firstNewPhishing);
+            }
+          }
+
+          // Mark ALL results as seen so we never re-notify them
+          newResults.forEach(result => {
+            const key = (result.timestamp || '') + (result.email_data?.subject || '');
+            notifiedKeysRef.current.add(key);
+          });
+
           // Only replace results when we have actual data.
           // This prevents the results panel from disappearing on empty / transient API responses.
           setRecentAnalysis(newResults);
@@ -237,6 +289,9 @@ export const EmailMonitoringProvider = ({ children, currentUser }) => {
   const startMonitoring = async (emailData) => {
     try {
       console.log('▶️ [GLOBAL] Starting monitoring...');
+
+      // Request notification permission when monitoring starts
+      await requestNotificationPermission();
       
       const response = await api.post('/api/email/start-monitoring', {
         user_id: currentUser.uid,
@@ -276,7 +331,7 @@ export const EmailMonitoringProvider = ({ children, currentUser }) => {
           console.log(`⏳ [GLOBAL] Attempt ${attempts}/${maxAttempts} - waiting ${delay}ms...`);
           await new Promise(resolve => setTimeout(resolve, delay));
           
-          resultsCount = await fetchResults(currentUser.uid, emailData.emailAddress);
+          resultsCount = await fetchResults(currentUser.uid, emailData.emailAddress, false, true);
           
           if (resultsCount > 0) {
             console.log(`✅ [GLOBAL] Got ${resultsCount} initial results!`);
@@ -366,7 +421,8 @@ export const EmailMonitoringProvider = ({ children, currentUser }) => {
     startMonitoring,
     stopMonitoring,
     refreshResults,
-    updateCredentials
+    updateCredentials,
+    requestNotificationPermission
   };
 
   return (
