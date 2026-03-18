@@ -1,3 +1,1 @@
-fetching result after stopping
-fix notification
 deploy

@@ -24,10 +24,12 @@ export const EmailMonitoringProvider = ({ children, currentUser }) => {
   const [emailCredentials, setEmailCredentials] = useState(null);
   const [fetchingInitialResults, setFetchingInitialResults] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [sessionSummary, setSessionSummary] = useState(null);
   
   const pollIntervalRef = useRef(null);
   const keepAliveIntervalRef = useRef(null);
-  const notifiedKeysRef = useRef(new Set());
+  const latestSeenResultKeyRef = useRef(null);
+  const monitoringStartedAtRef = useRef(null);
 
   // Initialize monitoring on app load
   useEffect(() => {
@@ -55,11 +57,12 @@ export const EmailMonitoringProvider = ({ children, currentUser }) => {
           
           // Check if monitoring is already active
           let shouldRestoreMonitoring = false;
+          let parsedMonitoringState = null;
           
           if (savedMonitoringState) {
             try {
-              const parsedState = JSON.parse(savedMonitoringState);
-              if (parsedState.isActive) {
+              parsedMonitoringState = JSON.parse(savedMonitoringState);
+              if (parsedMonitoringState.isActive) {
                 shouldRestoreMonitoring = true;
                 console.log('✅ [GLOBAL] Found active monitoring in localStorage');
               }
@@ -87,6 +90,10 @@ export const EmailMonitoringProvider = ({ children, currentUser }) => {
           
           if (shouldRestoreMonitoring) {
             console.log('🔄 [GLOBAL] RESTORING active monitoring session');
+            const restoredStartedAt = parsedMonitoringState
+              ? (parsedMonitoringState.startedAt || new Date().toISOString())
+              : new Date().toISOString();
+            monitoringStartedAtRef.current = restoredStartedAt;
             const restoredState = {
               isActive: true,
               connectedEmail: savedCreds.emailAddress,
@@ -238,23 +245,25 @@ export const EmailMonitoringProvider = ({ children, currentUser }) => {
         const newResults = response.data.data.results;
         
         if (newResults.length > 0) {
-          if (!silentInit) {
-            // Find the single newest result that hasn't been seen before
-            // Results are assumed newest-first; find the first unseen phishing one
-            const firstNewPhishing = newResults.find(result => {
-              const key = (result.timestamp || '') + (result.email_data?.subject || '');
-              return !notifiedKeysRef.current.has(key) && result.analysis?.is_phishing;
-            });
-            if (firstNewPhishing) {
-              firePhishingNotification(firstNewPhishing);
-            }
-          }
+          // Notify only based on the single newest scanned email.
+          // Never scan older items in the list for notification decisions.
+          const newestResult = newResults[0];
+          const newestKey = (newestResult.timestamp || '') + (newestResult.email_data?.subject || '');
 
-          // Mark ALL results as seen so we never re-notify them
-          newResults.forEach(result => {
-            const key = (result.timestamp || '') + (result.email_data?.subject || '');
-            notifiedKeysRef.current.add(key);
-          });
+          if (silentInit) {
+            // Session restore / initial hydration: treat current newest as baseline.
+            latestSeenResultKeyRef.current = newestKey;
+          } else {
+            const hasPreviousNewest = !!latestSeenResultKeyRef.current;
+            const isNewlyScannedEmail = newestKey !== latestSeenResultKeyRef.current;
+
+            if (hasPreviousNewest && isNewlyScannedEmail && newestResult.analysis?.is_phishing) {
+              firePhishingNotification(newestResult);
+            }
+
+            // Always move baseline to current newest after processing.
+            latestSeenResultKeyRef.current = newestKey;
+          }
 
           // Only replace results when we have actual data.
           // This prevents the results panel from disappearing on empty / transient API responses.
@@ -301,11 +310,16 @@ export const EmailMonitoringProvider = ({ children, currentUser }) => {
       });
 
       if (response.data.success) {
+        const startedAt = new Date().toISOString();
+        monitoringStartedAtRef.current = startedAt;
+        setSessionSummary(null);
+
         const newState = {
           isActive: true,
           connectedEmail: emailData.emailAddress,
           lastCheck: new Date().toISOString(),
-          scansPerformed: 0
+          scansPerformed: 0,
+          startedAt
         };
         
         setMonitoringStatus(newState);
@@ -365,6 +379,14 @@ export const EmailMonitoringProvider = ({ children, currentUser }) => {
   const stopMonitoring = async () => {
     try {
       console.log('⏹️ [GLOBAL] Stopping monitoring...');
+
+      // Snapshot current session data before clearing state
+      const startedAt = monitoringStartedAtRef.current;
+      const endedAt = new Date().toISOString();
+      const snapshot = [...recentAnalysis];
+      const phishingCount = snapshot.filter(item => item.analysis?.is_phishing).length;
+      const safeCount = snapshot.length - phishingCount;
+      const durationMs = startedAt ? Math.max(0, new Date(endedAt).getTime() - new Date(startedAt).getTime()) : 0;
       
       // Stop polling immediately
       stopPolling();
@@ -388,6 +410,17 @@ export const EmailMonitoringProvider = ({ children, currentUser }) => {
           scansPerformed: 0
         });
         setRecentAnalysis([]);
+        latestSeenResultKeyRef.current = null;
+        monitoringStartedAtRef.current = null;
+        setSessionSummary({
+          startedAt,
+          endedAt,
+          durationMs,
+          totalScanned: snapshot.length,
+          phishingCount,
+          safeCount,
+          foundPhishing: phishingCount > 0
+        });
         
         return { success: true };
       } else {
@@ -418,6 +451,7 @@ export const EmailMonitoringProvider = ({ children, currentUser }) => {
     emailCredentials,
     fetchingInitialResults,
     isRefreshing,
+    sessionSummary,
     startMonitoring,
     stopMonitoring,
     refreshResults,

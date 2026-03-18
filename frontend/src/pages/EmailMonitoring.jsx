@@ -8,7 +8,7 @@ import { saveEmailCredentials } from '../services/userService';
 
 const EmailMonitoring = () => {
   const { currentUser } = useAuth();
-  const { monitoringStatus, recentAnalysis, emailCredentials, fetchingInitialResults, isRefreshing, startMonitoring, stopMonitoring, refreshResults, updateCredentials } = useEmailMonitoring();
+  const { monitoringStatus, recentAnalysis, emailCredentials, fetchingInitialResults, isRefreshing, sessionSummary, startMonitoring, stopMonitoring, refreshResults, updateCredentials } = useEmailMonitoring();
   
   const [step, setStep] = useState(1); // 1: Input, 2: Validating, 3: Connected
   const [loading, setLoading] = useState(false);
@@ -28,6 +28,16 @@ const EmailMonitoring = () => {
   // Once results have been loaded at least once, keep the container mounted
   // even if recentAnalysis briefly goes empty between polls.
   const hasLoadedResultsRef = useRef(false);
+
+  const formatDuration = (durationMs) => {
+    if (!durationMs || durationMs < 1000) return 'Less than a minute';
+    const totalSeconds = Math.floor(durationMs / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+
+    if (hours > 0) return `${hours}h ${minutes}m`;
+    return `${minutes}m`;
+  };
 
   // Debug: Log emailData changes
   useEffect(() => {
@@ -607,7 +617,7 @@ const EmailMonitoring = () => {
                 </div>
               )}
 
-              {(recentAnalysis.length > 0 || hasLoadedResultsRef.current) && (() => {
+              {(recentAnalysis.length > 0 || hasLoadedResultsRef.current || !!sessionSummary) && (() => {
                 // Mark that results have been shown — the panel stays mounted from here on
                 if (recentAnalysis.length > 0) hasLoadedResultsRef.current = true;
                 return (
@@ -636,10 +646,52 @@ const EmailMonitoring = () => {
                   </div>
                   <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
                     {recentAnalysis.length === 0 ? (
-                      <div className="flex items-center justify-center py-8 text-gray-400">
-                        <Loader className="h-5 w-5 animate-spin mr-2" />
-                        <span>Waiting for results...</span>
-                      </div>
+                      monitoringStatus.isActive ? (
+                        <div className="flex items-center justify-center py-8 text-gray-400">
+                          <Loader className="h-5 w-5 animate-spin mr-2" />
+                          <span>Waiting for results...</span>
+                        </div>
+                      ) : sessionSummary ? (
+                        <div className="rounded-xl border border-gray-200 bg-gray-50 p-5 space-y-4">
+                          <div className="flex items-center justify-between">
+                            <h4 className="text-base font-semibold text-gray-900">Last Monitoring Session Summary</h4>
+                            <span className={`text-xs font-semibold px-2 py-1 rounded-full ${
+                              sessionSummary.foundPhishing
+                                ? 'bg-red-100 text-red-700'
+                                : 'bg-green-100 text-green-700'
+                            }`}>
+                              {sessionSummary.foundPhishing ? 'Phishing Detected' : 'No Phishing Detected'}
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                            <div className="bg-white border border-gray-200 rounded-lg p-3">
+                              <p className="text-xs text-gray-500">Monitoring Duration</p>
+                              <p className="text-lg font-bold text-gray-900">{formatDuration(sessionSummary.durationMs)}</p>
+                            </div>
+                            <div className="bg-white border border-gray-200 rounded-lg p-3">
+                              <p className="text-xs text-gray-500">Total Emails Scanned</p>
+                              <p className="text-lg font-bold text-gray-900">{sessionSummary.totalScanned}</p>
+                            </div>
+                            <div className="bg-white border border-gray-200 rounded-lg p-3">
+                              <p className="text-xs text-gray-500">Phishing Found</p>
+                              <p className="text-lg font-bold text-red-600">{sessionSummary.phishingCount}</p>
+                            </div>
+                            <div className="bg-white border border-gray-200 rounded-lg p-3">
+                              <p className="text-xs text-gray-500">Safe Emails</p>
+                              <p className="text-lg font-bold text-green-600">{sessionSummary.safeCount}</p>
+                            </div>
+                          </div>
+
+                          <p className="text-xs text-gray-500">
+                            Ended at {sessionSummary.endedAt ? new Date(sessionSummary.endedAt).toLocaleString() : 'N/A'}
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-center py-8 text-gray-400">
+                          <span>No results available for this session.</span>
+                        </div>
+                      )
                     ) : (
                       recentAnalysis.map((result) => {
                         const stableKey = result.timestamp + result.email_data.subject;
