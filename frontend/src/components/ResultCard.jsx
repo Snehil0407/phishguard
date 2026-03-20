@@ -31,6 +31,49 @@ const ResultCard = ({ result, loading, scanType, scanData, onDownloadPDF }) => {
 
   if (!result) return null;
 
+  const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+  const toNumber = (value) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  };
+
+  const normalizedRiskScore = clamp(toNumber(result.risk_score) ?? 0, 0, 100);
+  const normalizedSeverity =
+    typeof result.severity === 'string' && result.severity.trim()
+      ? result.severity.trim().toLowerCase()
+      : normalizedRiskScore >= 70
+        ? 'high'
+        : normalizedRiskScore >= 40
+          ? 'medium'
+          : 'low';
+
+  const isHighRisk = normalizedSeverity === 'high' || normalizedSeverity === 'critical' || normalizedRiskScore >= 70;
+  const displayIsPhishing = Boolean(result.is_phishing) || isHighRisk;
+
+  const rawConfidence = toNumber(result.confidence);
+  let normalizedConfidence =
+    rawConfidence !== null
+      ? clamp(rawConfidence, 0, 1)
+      : displayIsPhishing
+        ? normalizedRiskScore / 100
+        : 1 - normalizedRiskScore / 100;
+
+  if (displayIsPhishing && normalizedConfidence < 0.01 && normalizedRiskScore >= 70) {
+    normalizedConfidence = normalizedRiskScore / 100;
+  }
+
+  if (!displayIsPhishing && normalizedConfidence < 0.01 && normalizedRiskScore <= 30) {
+    normalizedConfidence = 1 - normalizedRiskScore / 100;
+  }
+
+  const displayResult = {
+    ...result,
+    is_phishing: displayIsPhishing,
+    risk_score: normalizedRiskScore,
+    severity: normalizedSeverity,
+    confidence: clamp(normalizedConfidence, 0, 1)
+  };
+
   const getSeverityColor = (severity) => {
     switch (severity?.toLowerCase()) {
       case 'critical':
@@ -71,7 +114,7 @@ const ResultCard = ({ result, loading, scanType, scanData, onDownloadPDF }) => {
     }
   };
 
-  const severityConfig = getSeverityColor(result.severity);
+  const severityConfig = getSeverityColor(displayResult.severity);
   const Icon = severityConfig.icon;
 
   return (
@@ -87,15 +130,15 @@ const ResultCard = ({ result, loading, scanType, scanData, onDownloadPDF }) => {
             <Icon className="h-8 w-8" />
             <div>
               <h3 className="text-2xl font-bold">
-                {result.is_phishing ? 'Phishing Detected!' : 'Content is Safe'}
+                {displayResult.is_phishing ? 'Phishing Detected!' : 'Content is Safe'}
               </h3>
               <p className="text-white/90">
-                {result.severity.charAt(0).toUpperCase() + result.severity.slice(1)} Risk Level
+                {displayResult.severity.charAt(0).toUpperCase() + displayResult.severity.slice(1)} Risk Level
               </p>
             </div>
           </div>
           <div className="text-right">
-            <div className="text-4xl font-bold">{result.risk_score}</div>
+            <div className="text-4xl font-bold">{displayResult.risk_score}</div>
             <div className="text-sm text-white/90">Risk Score</div>
           </div>
         </div>
@@ -128,13 +171,13 @@ const ResultCard = ({ result, loading, scanType, scanData, onDownloadPDF }) => {
           <div className="flex items-center justify-between mb-2">
             <span className="text-gray-700 font-semibold">Confidence Level</span>
             <span className={`${severityConfig.text} font-bold`}>
-              {(result.confidence * 100).toFixed(2)}%
+              {(displayResult.confidence * 100).toFixed(2)}%
             </span>
           </div>
           <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
             <motion.div
               initial={{ width: 0 }}
-              animate={{ width: `${result.confidence * 100}%` }}
+              animate={{ width: `${displayResult.confidence * 100}%` }}
               transition={{ duration: 1, ease: 'easeOut' }}
               className={`h-3 bg-gradient-to-r ${severityConfig.bg} rounded-full`}
             ></motion.div>
@@ -147,7 +190,7 @@ const ResultCard = ({ result, loading, scanType, scanData, onDownloadPDF }) => {
             <h4 className="text-lg font-bold text-gray-800 mb-3">Analysis Details</h4>
             
             {/* Red Flags for URL/SMS/Email Analysis - Show ONLY if phishing detected */}
-            {result.is_phishing && result.explanation.red_flags && Array.isArray(result.explanation.red_flags) && result.explanation.red_flags.length > 0 && (
+            {displayResult.is_phishing && result.explanation.red_flags && Array.isArray(result.explanation.red_flags) && result.explanation.red_flags.length > 0 && (
               <div className="mb-6">
                 <h5 className="font-semibold text-gray-700 mb-3">🚨 Phishing Indicators Detected:</h5>
                 <div className="bg-red-50 border border-red-200 rounded-lg p-4">
@@ -175,7 +218,7 @@ const ResultCard = ({ result, loading, scanType, scanData, onDownloadPDF }) => {
             )}
 
             {/* Green Flags for URL/SMS/Email Analysis - Show ONLY if safe */}
-            {!result.is_phishing && result.explanation.green_flags && Array.isArray(result.explanation.green_flags) && result.explanation.green_flags.length > 0 && (
+            {!displayResult.is_phishing && result.explanation.green_flags && Array.isArray(result.explanation.green_flags) && result.explanation.green_flags.length > 0 && (
               <div className="mb-6">
                 <h5 className="font-semibold text-gray-700 mb-3">✅ Safety Indicators:</h5>
                 <div className="bg-green-50 border border-green-200 rounded-lg p-4">
@@ -207,7 +250,7 @@ const ResultCard = ({ result, loading, scanType, scanData, onDownloadPDF }) => {
               <h5 className="font-semibold text-gray-700 mb-3">Detected Indicators:</h5>
               <div className="space-y-3">
                 {/* Suspicious Sender Email - Show ONLY if phishing detected and email has suspicious flags */}
-                {result.is_phishing && result.explanation.red_flags_summary && (
+                {displayResult.is_phishing && result.explanation.red_flags_summary && (
                   result.explanation.red_flags_summary.misspelled_domain ||
                   result.explanation.red_flags_summary.free_email_provider ||
                   result.explanation.red_flags_summary.suspicious_tld ||
@@ -416,10 +459,10 @@ const ResultCard = ({ result, loading, scanType, scanData, onDownloadPDF }) => {
             {/* Safety Recommendation */}
             <div className={`border-l-4 ${severityConfig.border} bg-gray-50 p-4 rounded-r-lg mt-4`}>
               <p className="font-semibold text-gray-800 mb-2">
-                {result.is_phishing ? '⚠️ Recommendation:' : '✅ Safety Check:'}
+                {displayResult.is_phishing ? '⚠️ Recommendation:' : '✅ Safety Check:'}
               </p>
               <p className="text-gray-700">
-                {result.is_phishing 
+                {displayResult.is_phishing 
                   ? 'This content shows signs of phishing. Do not click any links, provide personal information, or respond. Delete it immediately and report if possible.'
                   : 'This content appears to be legitimate. However, always verify sender identity and be cautious with sensitive information.'}
               </p>
