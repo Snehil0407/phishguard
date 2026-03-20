@@ -140,6 +140,44 @@ active_monitoring_tasks: Dict[str, asyncio.Task] = {}
 # Global dictionary for storing recent scan results (user_key -> list of results)
 recent_scan_results: Dict[str, List[Dict[str, Any]]] = {}
 
+
+def _normalize_prediction_result(result: Dict[str, Any], model_type: str) -> Dict[str, Any]:
+    """Normalize predictor output to a stable schema for API responses."""
+    if not isinstance(result, dict):
+        result = {}
+
+    is_phishing = bool(result.get('is_phishing', False))
+    confidence = float(result.get('confidence', 0.0) or 0.0)
+
+    risk_score = result.get('risk_score')
+    if risk_score is None:
+        risk_score = int(confidence * 100) if is_phishing else int((1 - confidence) * 100)
+
+    severity = result.get('severity')
+    if not severity:
+        if risk_score >= 70:
+            severity = 'high'
+        elif risk_score >= 40:
+            severity = 'medium'
+        else:
+            severity = 'low'
+
+    explanation = result.get('explanation')
+    if not isinstance(explanation, dict):
+        explanation = {}
+
+    if result.get('error'):
+        explanation.setdefault('error_details', str(result.get('error')))
+
+    return {
+        'is_phishing': is_phishing,
+        'confidence': max(0.0, min(1.0, confidence)),
+        'risk_score': max(0, min(100, int(risk_score))),
+        'severity': severity,
+        'explanation': explanation,
+        'model_type': result.get('model_type', model_type)
+    }
+
 @app.on_event("startup")
 async def startup_event():
     """Startup event handler"""
@@ -188,12 +226,13 @@ async def analyze_email(request: EmailAnalysisRequest):
     
     try:
         # Get prediction with comprehensive analysis
-        result = predictor.predict_email(
+        raw_result = predictor.predict_email(
             email_text=request.content, 
             email_subject=request.subject,
             sender_email=request.sender_email or "",
             sender_display=request.sender_display or ""
         )
+        result = _normalize_prediction_result(raw_result, "email")
         
         logger.info(f"Email analysis completed: {result['severity']} risk")
         
@@ -226,7 +265,8 @@ async def analyze_sms(request: SMSAnalysisRequest):
     
     try:
         # Get prediction
-        result = predictor.predict_sms(request.message)
+        raw_result = predictor.predict_sms(request.message)
+        result = _normalize_prediction_result(raw_result, "sms")
         
         logger.info(f"SMS analysis completed: {result['severity']} risk")
         
@@ -259,7 +299,8 @@ async def analyze_url(request: URLAnalysisRequest):
     
     try:
         # Get prediction
-        result = predictor.predict_url(request.url)
+        raw_result = predictor.predict_url(request.url)
+        result = _normalize_prediction_result(raw_result, "url")
         
         logger.info(f"URL analysis completed: {result['severity']} risk")
         
